@@ -13,6 +13,7 @@ import agentStatusPiExtension, {
   getSessionKey,
   getStatusDir,
   nowUtc,
+  parseTmuxEnvironment,
   sanitizeAgentId,
   summarizePrompt,
   updateRuntime,
@@ -20,6 +21,25 @@ import agentStatusPiExtension, {
   withTask,
   writeStatusFile,
 } from "../index.js";
+
+test("parseTmuxEnvironment extracts socket paths containing commas", () => {
+  assert.deepEqual(
+    parseTmuxEnvironment({ TMUX: "/tmp/tmux,socket/default,1234,7", TMUX_PANE: "%12" }),
+    { tmux_socket: "/tmp/tmux,socket/default", tmux_pane: "%12" },
+  );
+});
+
+test("parseTmuxEnvironment omits invalid or incomplete pairs", () => {
+  for (const env of [
+    {},
+    { TMUX: "/tmp/default,1234,7" },
+    { TMUX_PANE: "%1" },
+    { TMUX: "/tmp/default,pid,7", TMUX_PANE: "%1" },
+    { TMUX: "/tmp/default,1234,index", TMUX_PANE: "%1" },
+    { TMUX: "/tmp/default,1234,7", TMUX_PANE: "1" },
+    { TMUX: ",1234,7", TMUX_PANE: "%1" },
+  ]) assert.equal(parseTmuxEnvironment(env), undefined);
+});
 
 test("getStatusDir follows standard", () => {
   assert.equal(getStatusDir({ AGENT_STATUS_DIR: "/tmp/custom" }, "/home/me"), "/tmp/custom");

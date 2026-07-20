@@ -30,7 +30,7 @@ This standard covers:
 ## Non-goals
 
 Out of scope:
-- tmux integration
+- tmux orchestration or navigation
 - registry server
 - full A2A server
 - orchestration layer
@@ -96,7 +96,9 @@ This model supports multiple simultaneous sessions of the same agent family by u
     "service_url": "http://127.0.0.1:8711/a2a"
   },
   "x_meta": {
-    "branch": "main"
+    "branch": "main",
+    "tmux_socket": "/tmp/tmux-1000/default",
+    "tmux_pane": "%3"
   }
 }
 ```
@@ -133,6 +135,10 @@ Optional fields:
 - `goal`: durable session-level intent snapshot, usually seeded from first prompt
 - `task`: current turn or currently queued unit of work
 - `x_meta`: extension object for additive local metadata
+- `x_meta.tmux_socket`: optional tmux server socket path
+- `x_meta.tmux_pane`: optional tmux pane identifier matching `^%\d+$`
+
+The tmux fields MUST be emitted as a pair or omitted together. They identify the local pane but do not define navigation, orchestration, or process correlation behavior.
 
 ## Runtime lifecycle model
 

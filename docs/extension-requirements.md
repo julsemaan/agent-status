@@ -504,11 +504,17 @@ If doing so:
 
 ### 10.4 x_meta
 
-`x_meta` is an extension object for additive metadata. The emitter SHOULD:
+`x_meta` is an extension object for additive metadata. Emitters MAY combine bridge metadata with validated local environment metadata.
 
-- Only populate `x_meta` when bridge data is available.
-- Remove `x_meta` when no bridge data is present (not empty object).
-- Use `x_meta` for host-specific state (mode, todo counts, goal status, etc.).
+For tmux metadata:
+
+- Read the socket path from `TMUX`, whose format is `<socket>,<server-pid>,<session-index>`. Parse the final two comma-delimited numeric fields so socket paths may contain commas.
+- Read the pane identifier from `TMUX_PANE` and require it to match `^%\d+$`.
+- Emit `x_meta.tmux_socket` and `x_meta.tmux_pane` only as a validated pair.
+- Environment-derived tmux values override bridge values.
+- If either environment value is missing or malformed, omit both tmux keys, including tmux keys supplied by the bridge. The local environment is authoritative because bridge data cannot safely correlate a pane without the socket.
+
+Other bridge-provided `x_meta` keys MUST survive this merge. Remove `x_meta` when no metadata remains; do not emit an empty object.
 
 ## 11. Shutdown Behavior
 
@@ -585,6 +591,7 @@ The emitter SHOULD include tests covering:
 9. **Shutdown cleanup**: File removed, heartbeat stopped, ownership released.
 10. **Bridge composition**: Bridge overrides core task; absent bridge falls back.
 11. **Agent end behavior**: Core task cleared; bridge task survives.
+12. **Tmux metadata**: Valid environment pair overrides bridge tmux keys; missing or malformed pair omits both keys while preserving unrelated bridge metadata.
 
 ### 13.3 Test Framework
 

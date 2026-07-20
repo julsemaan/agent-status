@@ -23,3 +23,5 @@ After install in running pi session, run `/reload` or restart pi.
 Pi loads `./pi-extension/index.js` via root `package.json` `pi.extensions` manifest.
 
 Current extension supports durable `goal` persistence plus optional bridge override via `agent-status:profile`. Bridge producer not shipped in this repo.
+
+When pi starts inside tmux, the extension automatically emits paired `x_meta.tmux_socket` and `x_meta.tmux_pane` values from `TMUX` and `TMUX_PANE`. Missing or malformed values omit both fields. After installing or upgrading the extension, run `/reload` or restart pi so the new emitter code loads.

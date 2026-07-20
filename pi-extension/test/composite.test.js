@@ -57,6 +57,11 @@ async function flushAsync() {
   await new Promise(resolve => setImmediate(resolve));
 }
 
+function restoreEnv(name, value) {
+  if (value === undefined) delete process.env[name];
+  else process.env[name] = value;
+}
+
 test("composite: first prompt sets goal and active task", async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "astatus-comp-"));
   const prev = process.env.AGENT_STATUS_DIR;
@@ -190,6 +195,88 @@ test("composite: bridge submitted still works for real queued work", async () =>
   } finally {
     if (prev === undefined) delete process.env.AGENT_STATUS_DIR;
     else process.env.AGENT_STATUS_DIR = prev;
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test("composite: valid tmux environment overrides bridge keys and preserves bridge metadata", async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "astatus-comp-"));
+  const previous = {
+    statusDir: process.env.AGENT_STATUS_DIR,
+    tmux: process.env.TMUX,
+    pane: process.env.TMUX_PANE,
+  };
+  process.env.AGENT_STATUS_DIR = tmp;
+  process.env.TMUX = "/tmp/tmux,socket/default,1234,7";
+  process.env.TMUX_PANE = "%9";
+
+  const { pi, lifecycleHandlers } = createMockPi();
+  try {
+    agentStatusPiExtension(pi);
+    await lifecycleHandlers.get("session_start")?.({ reason: "startup" }, testCtx("tmux-valid"));
+    pi.events.emit("agent-status:profile", {
+      x_meta: {
+        pi: { mode: "build" },
+        tmux_socket: "/bridge/socket",
+        tmux_pane: "%1",
+      },
+    });
+
+    const record = readStatusFile(tmp);
+    assert.deepEqual(record.x_meta.pi, { mode: "build" });
+    assert.equal(record.x_meta.tmux_socket, "/tmp/tmux,socket/default");
+    assert.equal(record.x_meta.tmux_pane, "%9");
+  } finally {
+    restoreEnv("AGENT_STATUS_DIR", previous.statusDir);
+    restoreEnv("TMUX", previous.tmux);
+    restoreEnv("TMUX_PANE", previous.pane);
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test("composite: invalid tmux environment strips bridge tmux keys", async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "astatus-comp-"));
+  const previous = { statusDir: process.env.AGENT_STATUS_DIR, tmux: process.env.TMUX, pane: process.env.TMUX_PANE };
+  process.env.AGENT_STATUS_DIR = tmp;
+  process.env.TMUX = "/tmp/default,1234,7";
+  delete process.env.TMUX_PANE;
+
+  const { pi, lifecycleHandlers } = createMockPi();
+  try {
+    agentStatusPiExtension(pi);
+    await lifecycleHandlers.get("session_start")?.({ reason: "startup" }, testCtx("tmux-invalid"));
+    pi.events.emit("agent-status:profile", {
+      x_meta: { pi: { mode: "build" }, tmux_socket: "/bridge/socket", tmux_pane: "%1" },
+    });
+
+    const record = readStatusFile(tmp);
+    assert.deepEqual(record.x_meta, { pi: { mode: "build" } });
+  } finally {
+    restoreEnv("AGENT_STATUS_DIR", previous.statusDir);
+    restoreEnv("TMUX", previous.tmux);
+    restoreEnv("TMUX_PANE", previous.pane);
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test("composite: outside tmux emits no tmux metadata", async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "astatus-comp-"));
+  const previous = { statusDir: process.env.AGENT_STATUS_DIR, tmux: process.env.TMUX, pane: process.env.TMUX_PANE };
+  process.env.AGENT_STATUS_DIR = tmp;
+  delete process.env.TMUX;
+  delete process.env.TMUX_PANE;
+
+  const { pi, lifecycleHandlers } = createMockPi();
+  try {
+    agentStatusPiExtension(pi);
+    await lifecycleHandlers.get("session_start")?.({ reason: "startup" }, testCtx("outside-tmux"));
+
+    const record = readStatusFile(tmp);
+    assert.equal("x_meta" in record, false);
+  } finally {
+    restoreEnv("AGENT_STATUS_DIR", previous.statusDir);
+    restoreEnv("TMUX", previous.tmux);
+    restoreEnv("TMUX_PANE", previous.pane);
     fs.rmSync(tmp, { recursive: true, force: true });
   }
 });

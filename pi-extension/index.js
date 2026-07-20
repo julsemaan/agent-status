@@ -34,6 +34,12 @@ export function summarizePrompt(prompt, maxLength = 120) {
   return text.length <= maxLength ? text : `${text.slice(0, maxLength - 1)}…`;
 }
 
+export function parseTmuxEnvironment(env = process.env) {
+  const match = String(env.TMUX || "").match(/^(.+),(\d+),(\d+)$/);
+  if (!match || !/^%\d+$/.test(String(env.TMUX_PANE || ""))) return undefined;
+  return { tmux_socket: match[1], tmux_pane: env.TMUX_PANE };
+}
+
 export function buildStatusPath(agentId, env = process.env, homeDir = os.homedir()) {
   return path.join(getStatusDir(env, homeDir), `${sanitizeAgentId(agentId)}.json`);
 }
@@ -185,12 +191,12 @@ export default function agentStatusPiExtension(pi) {
     record = withGoal(record, goal);
     record = withTask(record, bridgeData?.task || coreTask || undefined);
 
-    // x_meta: from bridge only
-    if (bridgeData?.x_meta) {
-      record.x_meta = bridgeData.x_meta;
-    } else {
-      delete record.x_meta;
-    }
+    const xMeta = { ...bridgeData?.x_meta };
+    delete xMeta.tmux_socket;
+    delete xMeta.tmux_pane;
+    Object.assign(xMeta, parseTmuxEnvironment());
+    if (Object.keys(xMeta).length) record.x_meta = xMeta;
+    else delete record.x_meta;
 
     writeStatusFile(statusPath, record);
   };
