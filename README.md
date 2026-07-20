@@ -33,35 +33,7 @@ From PyPI:
 pip install agent-status
 ```
 
-Manual setup:
-
-```bash
-python3 -m venv .venv
-. .venv/bin/activate
-pip install -e .
-```
-
-Devbox alternative:
-
-```bash
-devbox shell
-python -m pip install -e .
-```
-
-Devbox uses same `.venv` path via `VENV_DIR=.venv`.
-
 ### Pi extension install
-
-Pi package lives in `pi-extension/`, exported from repo root `package.json` like `ponytail`.
-
-Install from local checkout:
-
-```bash
-pi install /path/to/astatus
-```
-
-Do not install `./pi-extension` directly. Repo root `package.json` exports extension.
-After install in running pi session, run `/reload` or restart pi so `session_start` fires for new extension.
 
 Install from git:
 
@@ -69,29 +41,9 @@ Install from git:
 pi install git:github.com/you/astatus
 ```
 
-One-shot test without install:
+## Development
 
-```bash
-pi -e ./pi-extension/index.js
-```
-
-## Build
-
-Build a wheel and source distribution:
-
-```bash
-python -m pip install build
-python -m build
-```
-
-Install from built wheel in a fresh environment:
-
-```bash
-python -m venv /tmp/astatus-smoke
-. /tmp/astatus-smoke/bin/activate
-pip install dist/*.whl
-agent-status --help
-```
+See [`docs/development.md`](docs/development.md) for local setup, Pi extension loading, tests, and builds.
 
 ## Quick start
 
