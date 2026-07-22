@@ -51,6 +51,12 @@ For a one-shot extension test without installing it:
 pi -e ./pi-extension/index.js
 ```
 
+## Develop Codex CLI integration
+
+Codex CLI 0.145.0+ on Linux/macOS loads repository `.codex/hooks.json` in a trusted checkout. Start `codex`, open `/hooks`, and trust current hooks; changed definitions require trust again. First prompt triggers `SessionStart` and detached 20-second heartbeat sidecar.
+
+Tests can pass short `--poll-interval` and `--heartbeat-interval` values to `emitter.py sidecar`; production defaults remain 0.1 and 20 seconds.
+
 ## Run checks
 
 ```bash

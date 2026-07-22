@@ -4,7 +4,11 @@ Requirements for building an agent framework extension that emits
 `agent-status/v1alpha1` conformant snapshots. Framework-agnostic: applies to
 pi, Codex, Claude Code, Aider, or any agent runtime that can host extensions.
 
-Reference implementation: `pi-extension/index.js` (pi framework).
+Reference implementations: `pi-extension/index.js` (pi) and `codex-plugin/emitter.py` (Codex CLI).
+
+Codex mapping: `SessionStart` creates idle snapshot; prompt and tool hooks set `working`; `PermissionRequest` sets `input-required`; `Stop` clears task; `SessionEnd` removes snapshot. Goal survives resume and compact but resets on clear.
+
+Codex limits: first prompt may trigger lazy session start; plain assistant questions lack reliable waiting hook; permission state may last until `PostToolUse`; Windows and subagent snapshots are deferred.
 
 ## 1. Scope
 

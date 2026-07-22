@@ -41,6 +41,16 @@ Install from git:
 pi install git:github.com/you/astatus
 ```
 
+### Codex CLI integration
+
+Requires Codex CLI 0.145.0+, Python 3.10+, and Linux or macOS. In this trusted checkout, start `codex`, open `/hooks`, and trust `.codex/hooks.json`. Watch from another terminal:
+
+```bash
+agent-status watch
+```
+
+First prompt starts Codex session and detached sidecar. Sidecar emits 20-second heartbeats until `SessionEnd` or Codex process death. Integration adds no model tools or MCP server.
+
 ## Development
 
 See [`docs/development.md`](docs/development.md) for local setup, Pi extension loading, tests, and builds.
