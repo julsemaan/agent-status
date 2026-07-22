@@ -1,6 +1,7 @@
 import importlib.util
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -28,18 +29,57 @@ class CodexPluginTests(unittest.TestCase):
             **fields,
         }
 
-    def test_project_hooks_parse(self):
-        project_hooks = json.loads((ROOT / ".codex" / "hooks.json").read_text())
-        self.assertEqual(set(project_hooks["hooks"]), {
+    def test_packaged_plugin_manifests_and_hooks(self):
+        manifest = json.loads((ROOT / ".codex-plugin" / "plugin.json").read_text())
+        marketplace_path = ROOT / ".agents" / "plugins" / "marketplace.json"
+        marketplace = json.loads(marketplace_path.read_text())
+        package = json.loads((ROOT / "package.json").read_text())
+        pyproject = (ROOT / "pyproject.toml").read_text()
+
+        self.assertEqual(manifest["name"], "agent-status")
+        self.assertEqual(manifest["version"], package["version"])
+        self.assertIn(f'version = "{manifest["version"]}"', pyproject)
+        plugin = marketplace["plugins"][0]
+        self.assertEqual(marketplace["name"], "astatus")
+        self.assertEqual(plugin["name"], manifest["name"])
+        self.assertEqual((marketplace_path.parents[2] / plugin["source"]["path"]).resolve(), ROOT)
+        self.assertEqual(plugin["policy"], {
+            "installation": "AVAILABLE", "authentication": "ON_INSTALL",
+        })
+
+        hooks = json.loads((ROOT / "hooks" / "hooks.json").read_text())
+        self.assertEqual(set(hooks["hooks"]), {
             "SessionStart", "UserPromptSubmit", "PreToolUse", "PermissionRequest",
             "PostToolUse", "Stop", "SessionEnd",
         })
-        for groups in project_hooks["hooks"].values():
+        for groups in hooks["hooks"].values():
             command = groups[0]["hooks"][0]["command"]
-            self.assertIn('PLUGIN_ROOT="$(git rev-parse --show-toplevel)"', command)
-            self.assertIn('PLUGIN_DATA="${XDG_STATE_HOME:-$HOME/.local/state}/agent-status/codex-plugin"', command)
-            self.assertIn('python3 "$PLUGIN_ROOT/codex-plugin/emitter.py" hook --host-pid "$PPID"', command)
-        self.assertEqual(project_hooks["hooks"]["SessionEnd"][0]["hooks"][0]["timeout"], 3)
+            self.assertEqual(command, 'python3 "${PLUGIN_ROOT}/codex-plugin/emitter.py" hook --host-pid "$PPID"')
+            self.assertNotIn("git rev-parse", command)
+        self.assertEqual(hooks["hooks"]["SessionEnd"][0]["hooks"][0]["timeout"], 3)
+        self.assertFalse((ROOT / ".codex" / "hooks.json").exists())
+
+    def test_hook_executes_outside_git_with_spaced_plugin_root(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            plugin_root = base / "plugin root with spaces"
+            (plugin_root / "codex-plugin").mkdir(parents=True)
+            shutil.copy2(ROOT / "codex-plugin" / "emitter.py", plugin_root / "codex-plugin")
+            shutil.copy2(ROOT / "agent_status.py", plugin_root)
+            plugin_data = base / "plugin data"
+            cwd = base / "not a repository"
+            cwd.mkdir()
+            hooks = json.loads((ROOT / "hooks" / "hooks.json").read_text())
+            command = hooks["hooks"]["Stop"][0]["hooks"][0]["command"]
+            event = self.event("Stop")
+            result = subprocess.run(
+                command, shell=True, cwd=cwd, input=json.dumps(event), text=True,
+                capture_output=True, env={**os.environ, "PLUGIN_ROOT": str(plugin_root), "PLUGIN_DATA": str(plugin_data)},
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            queued = list(emitter.control_dir(plugin_data, "session/one").glob("events/*.json"))
+            self.assertEqual(len(queued), 1)
+            self.assertEqual(json.loads(queued[0].read_text())["hook_event_name"], "Stop")
 
     def test_tmux_environment_is_emitted_as_paired_metadata(self):
         self.assertEqual(
@@ -196,6 +236,43 @@ class CodexPluginTests(unittest.TestCase):
                 if first.poll() is None:
                     first.terminate()
                     first.wait()
+
+    def test_crash_restart_reuses_snapshot_and_cleans_ownership(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            data, statuses = Path(tmp) / "data", Path(tmp) / "statuses"
+            control = emitter.control_dir(data, "session/one")
+            emitter.enqueue_event(control, self.event("SessionStart", source="startup"))
+            cmd = [sys.executable, str(ROOT / "codex-plugin" / "emitter.py"), "sidecar",
+                   "--host-pid", str(os.getpid()), "--control-dir", str(control),
+                   "--status-dir", str(statuses), "--poll-interval", "0.02", "--heartbeat-interval", "0.05"]
+            first = subprocess.Popen(cmd)
+            second = None
+            try:
+                deadline = time.time() + 3
+                while time.time() < deadline and not list(statuses.glob("codex-*.json")):
+                    time.sleep(0.02)
+                snapshots = list(statuses.glob("codex-*.json"))
+                self.assertEqual(len(snapshots), 1)
+                original = snapshots[0]
+                first.kill()
+                first.wait(timeout=3)
+
+                emitter.enqueue_event(control, self.event("SessionStart", source="startup"))
+                second = subprocess.Popen(cmd)
+                deadline = time.time() + 3
+                while time.time() < deadline and not original.exists():
+                    time.sleep(0.02)
+                time.sleep(0.1)
+                self.assertEqual(list(statuses.glob("codex-*.json")), [original])
+                emitter.enqueue_event(control, self.event("SessionEnd"))
+                second.wait(timeout=3)
+                self.assertFalse(original.exists())
+                self.assertFalse((control / "ownership.json").exists())
+            finally:
+                for process in (first, second):
+                    if process is not None and process.poll() is None:
+                        process.terminate()
+                        process.wait()
 
     def test_dead_host_cleanup(self):
         with tempfile.TemporaryDirectory() as tmp:

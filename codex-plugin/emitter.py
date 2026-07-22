@@ -283,7 +283,15 @@ def run_sidecar(control: Path, output_dir: Path, host_pid: int, *,
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             return 0
-        agent_id = f"codex-{uuid.uuid4().hex}"
+        ownership_path = control / "ownership.json"
+        try:
+            ownership = json.loads(ownership_path.read_text(encoding="utf-8"))
+            agent_id = ownership["agent_id"]
+            if not isinstance(agent_id, str) or not re.fullmatch(r"codex-[0-9a-f]{32}", agent_id):
+                raise ValueError
+        except (OSError, json.JSONDecodeError, KeyError, TypeError, ValueError):
+            agent_id = f"codex-{uuid.uuid4().hex}"
+            atomic_write_json(ownership_path, {"agent_id": agent_id})
         snapshot = output_dir / f"{agent_id}.json"
         state = SessionState(agent_id, host_pid, control.parents[1])
         last_heartbeat = time.monotonic()
@@ -293,6 +301,7 @@ def run_sidecar(control: Path, output_dir: Path, host_pid: int, *,
             if state.shutdown or not alive:
                 drain_events(control, state)
                 snapshot.unlink(missing_ok=True)
+                ownership_path.unlink(missing_ok=True)
                 break
             now = time.monotonic()
             if now - last_heartbeat >= heartbeat_interval:

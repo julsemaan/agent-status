@@ -43,13 +43,35 @@ pi install git:github.com/you/astatus
 
 ### Codex CLI integration
 
-Requires Codex CLI 0.145.0+, Python 3.10+, and Linux or macOS. In this trusted checkout, start `codex`, open `/hooks`, and trust `.codex/hooks.json`. Watch from another terminal:
+Requires Python 3.10+, Linux or macOS, and a Codex CLI release with plugin support. Verify support with:
+
+```bash
+codex plugin --help
+```
+
+Install the status CLI and plugin marketplace:
+
+```bash
+pip install agent-status
+codex plugin marketplace add julsemaan/astatus
+codex plugin add agent-status@astatus
+```
+
+Start Codex in any repository, open `/hooks`, and trust the agent-status hooks. Then watch from another terminal:
 
 ```bash
 agent-status watch
 ```
 
-First prompt starts Codex session and detached sidecar. Sidecar emits 20-second heartbeats until `SessionEnd` or Codex process death. Integration adds no model tools or MCP server.
+First prompt starts a detached sidecar. Sidecar emits 20-second heartbeats until `SessionEnd` or Codex process death. Integration adds no model tools or MCP server.
+
+Upgrade or remove the plugin:
+
+```bash
+codex plugin marketplace upgrade astatus
+codex plugin remove agent-status@astatus
+codex plugin marketplace remove astatus
+```
 
 ## Development
 

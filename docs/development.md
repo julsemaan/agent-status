@@ -53,7 +53,22 @@ pi -e ./pi-extension/index.js
 
 ## Develop Codex CLI integration
 
-Codex CLI 0.145.0+ on Linux/macOS loads repository `.codex/hooks.json` in a trusted checkout. Start `codex`, open `/hooks`, and trust current hooks; changed definitions require trust again. First prompt triggers `SessionStart` and detached 20-second heartbeat sidecar.
+Codex CLI with plugin support on Linux/macOS installs the repository as a local marketplace plugin:
+
+```bash
+codex plugin marketplace add .
+codex plugin add agent-status@astatus
+```
+
+After changing the plugin, bump its version and refresh the installed cache:
+
+```bash
+codex plugin marketplace upgrade astatus
+codex plugin remove agent-status@astatus
+codex plugin add agent-status@astatus
+```
+
+Start a new Codex session, open `/hooks`, and trust the agent-status hooks. Hook definition changes require trust again. First prompt triggers `SessionStart` and a detached 20-second heartbeat sidecar.
 
 Tests can pass short `--poll-interval` and `--heartbeat-interval` values to `emitter.py sidecar`; production defaults remain 0.1 and 20 seconds.
 
