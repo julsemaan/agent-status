@@ -7,6 +7,7 @@ import fcntl
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -56,6 +57,38 @@ def is_subagent(event: dict[str, Any]) -> bool:
     return any(key in event for key in ("agent_id", "agent_type", "agent_transcript_path"))
 
 
+def assistant_message_requires_input(value: Any) -> bool:
+    return isinstance(value, str) and bool(re.search(r"\?(?:[\"'’”*_`\])}]+)?\s*$", value))
+
+
+def is_question_tool(value: Any) -> bool:
+    return isinstance(value, str) and (value == "request_user_input" or value.split("__")[-1] == "question")
+
+
+def parse_tmux_environment(env: dict[str, str] | os._Environ[str]) -> dict[str, str] | None:
+    match = re.fullmatch(r"(.+),(\d+),(\d+)", env.get("TMUX", ""))
+    pane = env.get("TMUX_PANE", "")
+    if not match or not re.fullmatch(r"%\d+", pane):
+        return None
+    return {"tmux_socket": match.group(1), "tmux_pane": pane}
+
+
+def process_environment(pid: int) -> dict[str, str]:
+    try:
+        proc_environ = Path(f"/proc/{pid}/environ")
+        raw = proc_environ.read_bytes() if proc_environ.exists() else subprocess.check_output(
+            ["ps", "eww", "-p", str(pid), "-o", "command="], stderr=subprocess.DEVNULL
+        )
+        return dict(item.split("=", 1) for item in raw.decode(errors="replace").replace("\x00", " ").split()
+                    if "=" in item)
+    except (OSError, subprocess.SubprocessError):
+        return {}
+
+
+def detect_tmux_environment(host_pid: int) -> dict[str, str] | None:
+    return parse_tmux_environment(os.environ) or parse_tmux_environment(process_environment(host_pid))
+
+
 class SessionState:
     def __init__(self, agent_id: str, host_pid: int, plugin_data: Path):
         self.agent_id = agent_id
@@ -68,6 +101,7 @@ class SessionState:
         self.task: dict[str, str] | None = None
         self.model: str | None = None
         self.permission_mode: str | None = None
+        self.tmux: dict[str, str] | None = None
         self.updated_at = now_utc()
         self.last_activity_at: str | None = None
         self.started = False
@@ -117,6 +151,12 @@ class SessionState:
             self.model = event["model"]
         if isinstance(event.get("permission_mode"), str):
             self.permission_mode = event["permission_mode"]
+        tmux = event.get("_tmux")
+        if isinstance(tmux, dict):
+            self.tmux = parse_tmux_environment({
+                "TMUX": f'{tmux.get("tmux_socket", "")},0,0',
+                "TMUX_PANE": tmux.get("tmux_pane", ""),
+            })
 
         if name == "SessionStart":
             source = event.get("source")
@@ -143,12 +183,16 @@ class SessionState:
                 self.goal = {"summary": summary, "updated_at": now_utc(), "source": "initial-prompt"}
                 self._save_goal()
         elif name in {"PreToolUse", "PostToolUse"}:
-            self._set_task(event, "working", None)
+            state = "input-required" if name == "PreToolUse" and is_question_tool(event.get("tool_name")) else "working"
+            self._set_task(event, state, None)
             self.last_activity_at = now_utc()
         elif name == "PermissionRequest":
             self._set_task(event, "input-required", None)
         elif name == "Stop":
-            self.task = None
+            if assistant_message_requires_input(event.get("last_assistant_message")):
+                self._set_task(event, "input-required", None)
+            else:
+                self.task = None
         elif name == "SessionEnd":
             self.shutdown = True
         else:
@@ -200,8 +244,8 @@ class SessionState:
             codex_meta["model"] = self.model
         if self.permission_mode:
             codex_meta["permission_mode"] = self.permission_mode
-        if codex_meta:
-            payload["x_meta"] = {"codex": codex_meta}
+        if codex_meta or self.tmux:
+            payload["x_meta"] = {"codex": codex_meta, **(self.tmux or {})}
         return payload
 
 
@@ -275,6 +319,9 @@ def cmd_hook(args: argparse.Namespace) -> int:
         if not isinstance(session_id, str) or not session_id:
             return 0
         plugin_data = Path(os.environ.get("PLUGIN_DATA", str(PLUGIN_ROOT / ".codex-data")))
+        tmux = detect_tmux_environment(args.host_pid)
+        if tmux:
+            event["_tmux"] = tmux
         control = control_dir(plugin_data, session_id)
         enqueue_event(control, event)
         if event.get("hook_event_name") == "SessionStart":

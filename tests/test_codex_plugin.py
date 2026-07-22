@@ -41,6 +41,32 @@ class CodexPluginTests(unittest.TestCase):
             self.assertIn('python3 "$PLUGIN_ROOT/codex-plugin/emitter.py" hook --host-pid "$PPID"', command)
         self.assertEqual(project_hooks["hooks"]["SessionEnd"][0]["hooks"][0]["timeout"], 3)
 
+    def test_tmux_environment_is_emitted_as_paired_metadata(self):
+        self.assertEqual(
+            emitter.parse_tmux_environment({
+                "TMUX": "/tmp/tmux,socket/default,1234,7",
+                "TMUX_PANE": "%12",
+            }),
+            {"tmux_socket": "/tmp/tmux,socket/default", "tmux_pane": "%12"},
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            state = emitter.SessionState("codex-" + "a" * 32, 123, Path(tmp))
+            state.apply(self.event("SessionStart", source="startup", _tmux={
+                "tmux_socket": "/tmp/tmux-1000/default",
+                "tmux_pane": "%3",
+            }))
+            self.assertEqual(state.payload()["x_meta"]["tmux_socket"], "/tmp/tmux-1000/default")
+            self.assertEqual(state.payload()["x_meta"]["tmux_pane"], "%3")
+
+    def test_hook_recovers_tmux_environment_from_codex_process(self):
+        environ = {"TMUX": "/tmp/tmux-1000/default,1234,7", "TMUX_PANE": "%3"}
+        with mock.patch.dict(os.environ, {}, clear=True), \
+             mock.patch.object(emitter, "process_environment", return_value=environ):
+            self.assertEqual(emitter.detect_tmux_environment(456), {
+                "tmux_socket": "/tmp/tmux-1000/default",
+                "tmux_pane": "%3",
+            })
+
     def test_queue_writes_are_atomic_and_unique(self):
         with tempfile.TemporaryDirectory() as tmp:
             control = emitter.control_dir(Path(tmp), "session/one")
@@ -69,9 +95,42 @@ class CodexPluginTests(unittest.TestCase):
             state.apply(self.event("PostToolUse", turn_id="turn-1"))
             self.assertEqual(state.payload()["task"]["state"], "working")
             self.assertGreaterEqual(state.payload()["runtime"]["last_activity_at"], activity)
-            state.apply(self.event("Stop", turn_id="turn-1"))
+            state.apply(self.event("Stop", turn_id="turn-1", last_assistant_message="Build complete."))
             self.assertNotIn("task", state.payload())
             self.assertEqual(agent_status.validate_payload(state.payload()), [])
+
+    def test_question_tool_requires_input_until_tool_returns(self):
+        for tool_name in ("request_user_input", "question", "mcp__ui__question"):
+            with self.subTest(tool_name=tool_name), tempfile.TemporaryDirectory() as tmp:
+                state = emitter.SessionState("codex-" + "a" * 32, 123, Path(tmp))
+                state.apply(self.event("UserPromptSubmit", turn_id="turn-1", prompt="Build thing"))
+                state.apply(self.event(
+                    "PreToolUse",
+                    turn_id="turn-1",
+                    tool_name=tool_name,
+                    tool_input={"questions": []},
+                ))
+                self.assertEqual(state.payload()["task"]["state"], "input-required")
+                state.apply(self.event(
+                    "PostToolUse",
+                    turn_id="turn-1",
+                    tool_name=tool_name,
+                    tool_input={"questions": []},
+                    tool_response={},
+                ))
+                self.assertEqual(state.payload()["task"]["state"], "working")
+
+    def test_stop_with_assistant_question_requires_input(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            state = emitter.SessionState("codex-" + "a" * 32, 123, Path(tmp))
+            state.apply(self.event("UserPromptSubmit", turn_id="turn-1", prompt="Build thing"))
+            state.apply(self.event(
+                "Stop",
+                turn_id="turn-1",
+                last_assistant_message="Which database should I use?",
+            ))
+            self.assertEqual(state.payload()["task"]["state"], "input-required")
+            self.assertEqual(state.payload()["task"]["summary"], "Build thing")
 
     def test_goal_resume_clear_and_compact(self):
         with tempfile.TemporaryDirectory() as tmp:
