@@ -96,3 +96,59 @@ python -m venv /tmp/astatus-smoke
 pip install dist/*.whl
 agent-status --help
 ```
+
+## Release
+
+Releases use annotated `vMAJOR.MINOR.PATCH` tags. PyPI and GitHub Releases receive the same wheel and source distribution. PyPI already contains `0.1.10`, so the next release must be `v0.1.11` or newer.
+
+Prepare and verify a version bump:
+
+```bash
+git switch main
+git pull --ff-only
+
+make bump-version BUMP=patch
+python3 -m unittest
+npm ci
+npm test
+python -m build
+twine check dist/*
+```
+
+Commit the changed manifests on a branch and merge them through a pull request:
+
+```bash
+git add pyproject.toml package.json package-lock.json .codex-plugin/plugin.json
+git commit -m "chore(release): bump version to X.Y.Z"
+```
+
+After the pull request merges, tag the merged commit and push the tag:
+
+```bash
+git switch main
+git pull --ff-only
+git tag -a vX.Y.Z -m "Release vX.Y.Z"
+git push origin vX.Y.Z
+```
+
+Verify the release:
+
+- Release workflow is green.
+- PyPI version is available.
+- GitHub Release is published.
+- Wheel and source distribution are attached.
+- A fresh virtual environment can install the released wheel.
+
+Repository setup required before the first release:
+
+- Add a `v*` tag ruleset restricted to release maintainers; block tag updates and deletion.
+- Confirm the `pypi` environment exists. Optionally require approval before publication.
+- Configure the PyPI Trusted Publisher for repository `julsemaan/astatus`, workflow `.github/workflows/publish-pypi.yml`, and environment `pypi`.
+- Do not store PyPI credentials in repository secrets.
+
+Recovery rules:
+
+- Before PyPI publication, fix the commit and recreate the tag only after deleting the unpublished bad tag.
+- After PyPI publication, never move or reuse the tag or version.
+- For a broken published release, yank the package when necessary, then issue a patch release.
+- If GitHub Release publication fails after PyPI succeeds, rerun the failed job or repair the release assets manually.

@@ -5,6 +5,9 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -15,19 +18,49 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Assert versions match
-        run: |
-          py_ver=$(python3 -c "import re; print(re.search(r'version\s*=\s*\"(.+?)\"', open('pyproject.toml').read()).group(1))")
-          js_ver=$(python3 -c "import json; print(json.load(open('package.json'))['version'])")
-          plugin_ver=$(python3 -c "import json; print(json.load(open('.codex-plugin/plugin.json'))['version'])")
-          if [ "$py_ver" != "$js_ver" ] || [ "$py_ver" != "$plugin_ver" ]; then
-            echo "::error::Version drift: pyproject.toml=$py_ver package.json=$js_ver plugin.json=$plugin_ver"
-            exit 1
-          fi
-          echo "Versions match: $py_ver"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
 
-      - name: Run tests
-        run: python -m unittest
+      - name: Assert versions match
+        shell: python
+        run: |
+          import json
+          import sys
+          import tomllib
+
+          with open("pyproject.toml", "rb") as file:
+              expected = tomllib.load(file)["project"]["version"]
+
+          with open("package.json") as file:
+              package = json.load(file)
+          with open("package-lock.json") as file:
+              package_lock = json.load(file)
+          with open(".codex-plugin/plugin.json") as file:
+              plugin = json.load(file)
+
+          versions = {
+              "pyproject.toml": expected,
+              "package.json": package["version"],
+              "package-lock.json": package_lock["version"],
+              "package-lock.json root package": package_lock["packages"][""]["version"],
+              ".codex-plugin/plugin.json": plugin["version"],
+          }
+          drift = {name: version for name, version in versions.items() if version != expected}
+          if drift:
+              print(f"::error::Version drift: {versions}")
+              sys.exit(1)
+          print(f"Versions match: {expected}")
+
+      - name: Install JavaScript dependencies
+        run: npm ci
+
+      - name: Run JavaScript tests
+        run: npm test
+
+      - name: Run Python tests
+        run: python3 -m unittest
 
       - name: Build package
         run: |
