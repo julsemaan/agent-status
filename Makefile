@@ -4,7 +4,7 @@ bump-version:
 	@b="$(or $(BUMP),patch)"; \
 	{ echo 'import json, re'; \
 	  echo 'b="$$b"'; \
-	  echo 'for f in ("package.json", "pyproject.toml"):'; \
+	  echo 'for f in ("package.json", "pyproject.toml", ".codex-plugin/plugin.json"):'; \
 	  echo '  txt=open(f).read()'; \
 	  echo '  m=re.search(r"version\s*=\s*\"(\d+\.\d+\.\d+)\"", txt) if "pyproject" in f else None'; \
 	  echo '  if m:'; \
