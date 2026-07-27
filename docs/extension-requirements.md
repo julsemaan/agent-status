@@ -4,7 +4,11 @@ Requirements for building an agent framework extension that emits
 `agent-status/v1alpha1` conformant snapshots. Framework-agnostic: applies to
 pi, Codex, Claude Code, Aider, or any agent runtime that can host extensions.
 
-Reference implementation: `pi-extension/index.js` (pi framework).
+Reference implementations: `pi-extension/index.js` (pi) and `codex-plugin/emitter.py` (Codex CLI).
+
+Codex mapping: `SessionStart` creates idle snapshot; prompts and ordinary tools set `working`; question-tool `PreToolUse` and `PermissionRequest` set `input-required`; question-tool `PostToolUse` resumes `working`; `Stop` sets `input-required` for a trailing question and otherwise clears task; `SessionEnd` removes snapshot. Goal survives resume and compact but resets on clear.
+
+Codex limits: first prompt may trigger lazy session start; plain assistant questions are inferred from a trailing `?` in the `Stop` message; permission state may last until `PostToolUse`; Windows and subagent snapshots are deferred.
 
 ## 1. Scope
 
@@ -347,8 +351,7 @@ reporting `working` when the agent is actually blocked on user input.
 | Harness Type | Strategy |
 |---|---|
 | **Extension-based** (pi) | Prefer host-supported state signal or bridge event over tool-name heuristics. Current in-repo pi extension uses bridge data instead of direct `tool_call` interception. |
-| **Event-emitting** (Codex) | Listen for permission prompt or user approval events.
-These are explicit signals the agent is waiting. |
+| **Event-emitting** (Codex) | Map `request_user_input` and question-tool `PreToolUse` to `input-required`, then resume on `PostToolUse`. Also listen for permission events. On `Stop`, infer a plain assistant question from `last_assistant_message` ending in `?`; punctuation remains fallback heuristic. |
 | **Log-parsing** | Watch for output patterns indicating a prompt: `?`, `(y/n)`,
 `Select:`, `Confirm:`. Less reliable; prefer event-based detection. |
 | **Bridge/external** | A profile-side bridge can observe the agent's internal state

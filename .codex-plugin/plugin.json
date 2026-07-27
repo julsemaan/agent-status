@@ -1,0 +1,23 @@
+{
+  "name": "agent-status",
+  "version": "0.1.10",
+  "description": "Emit Codex session state for local agent-status monitoring.",
+  "author": {
+    "name": "astatus contributors",
+    "url": "https://github.com/julsemaan"
+  },
+  "homepage": "https://github.com/julsemaan/astatus#readme",
+  "repository": "https://github.com/julsemaan/astatus",
+  "license": "Apache-2.0",
+  "keywords": ["agent-status", "codex", "monitoring"],
+  "interface": {
+    "displayName": "Agent Status",
+    "shortDescription": "Publish Codex session state locally.",
+    "longDescription": "Publishes Codex lifecycle and task state for agent-status watch without model tools or remote services.",
+    "developerName": "astatus contributors",
+    "category": "Developer Tools",
+    "capabilities": ["Hooks"],
+    "defaultPrompt": ["Show current local agent status."],
+    "websiteURL": "https://github.com/julsemaan/astatus"
+  }
+}
