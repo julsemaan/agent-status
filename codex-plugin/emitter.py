@@ -188,7 +188,9 @@ class SessionState:
             self.last_activity_at = now_utc()
         elif name == "PermissionRequest":
             self._set_task(event, "input-required", None)
+            self.last_activity_at = now_utc()
         elif name == "Stop":
+            self.last_activity_at = now_utc()
             if assistant_message_requires_input(event.get("last_assistant_message")):
                 self._set_task(event, "input-required", None)
             else:
