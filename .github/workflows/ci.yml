@@ -38,14 +38,20 @@ jobs:
           with open("package-lock.json") as file:
               package_lock = json.load(file)
           with open(".codex-plugin/plugin.json") as file:
-              plugin = json.load(file)
+              codex_plugin = json.load(file)
+          with open(".claude-plugin/plugin.json") as file:
+              claude_plugin = json.load(file)
+          with open(".claude-plugin/marketplace.json") as file:
+              marketplace = json.load(file)
 
           versions = {
               "pyproject.toml": expected,
               "package.json": package["version"],
               "package-lock.json": package_lock["version"],
               "package-lock.json root package": package_lock["packages"][""]["version"],
-              ".codex-plugin/plugin.json": plugin["version"],
+              ".codex-plugin/plugin.json": codex_plugin["version"],
+              ".claude-plugin/plugin.json": claude_plugin["version"],
+              ".claude-plugin/marketplace.json": marketplace["plugins"][0]["version"],
           }
           drift = {name: version for name, version in versions.items() if version != expected}
           if drift:
@@ -53,14 +59,13 @@ jobs:
               sys.exit(1)
           print(f"Versions match: {expected}")
 
-      - name: Install JavaScript dependencies
-        run: npm ci
-
-      - name: Run JavaScript tests
-        run: npm test
-
       - name: Run Python tests
         run: python3 -m unittest
+
+      - name: Run Node tests
+        run: |
+          npm ci
+          npm test
 
       - name: Build package
         run: |
