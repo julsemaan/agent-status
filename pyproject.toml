@@ -7,7 +7,7 @@ py-modules = ["agent_status"]
 
 [project]
 name = "agent-status"
-version = "0.1.10"
+version = "0.1.12"
 description = "Local agent status reference implementation"
 readme = "README.md"
 license = "Apache-2.0"
