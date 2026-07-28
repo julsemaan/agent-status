@@ -1,6 +1,6 @@
 {
   "$schema": "https://www.jetify.com/devbox.schema.json",
-  "packages": ["python@3.10"],
+  "packages": ["python@3.10", "nodejs@22"],
   "env": {
     "VENV_DIR": ".venv-devbox"
   },

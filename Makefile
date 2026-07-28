@@ -1,9 +1,10 @@
 .PHONY: bump-version
 
 bump-version:
-	@b="$(or $(BUMP),patch)"; \
-	{ echo 'import json, re'; \
-	  echo 'b="$$b"'; \
+	@export BUMP="$(or $(BUMP),patch)" VERSION="$(VERSION)"; \
+	{ echo 'import json, os, re'; \
+	  echo 'b=os.environ["BUMP"]; version=os.environ["VERSION"]'; \
+	  echo 'if version and not re.fullmatch(r"\d+\.\d+\.\d+", version): raise SystemExit("VERSION must be X.Y.Z")'; \
 	  echo 'for f in ("package.json", "pyproject.toml", ".codex-plugin/plugin.json", ".claude-plugin/plugin.json", ".claude-plugin/marketplace.json"):'; \
 	  echo '  txt=open(f).read()'; \
 	  echo '  m=re.search(r"version\s*=\s*\"(\d+\.\d+\.\d+)\"", txt) if "pyproject" in f else None'; \
@@ -11,9 +12,10 @@ bump-version:
 	  echo '    v=[int(x) for x in m.group(1).split(".")]'; \
 	  echo '  else:'; \
 	  echo '    p=json.load(open(f))'; \
-	  echo '    version=p["plugins"][0]["version"] if "marketplace" in f else p["version"]'; \
-	  echo '    v=[int(x) for x in version.split(".")]'; \
-	  echo '  if b=="major": v=[v[0]+1,0,0]'; \
+	  echo '    current=p["plugins"][0]["version"] if "marketplace" in f else p["version"]'; \
+	  echo '    v=[int(x) for x in current.split(".")]'; \
+	  echo '  if version: v=[int(x) for x in version.split(".")]'; \
+	  echo '  elif b=="major": v=[v[0]+1,0,0]'; \
 	  echo '  elif b=="minor": v=[v[0],v[1]+1,0]'; \
 	  echo '  else: v[2]+=1'; \
 	  echo '  nv=".".join(map(str,v))'; \
