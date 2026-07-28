@@ -63,8 +63,8 @@ def detect_host(env: dict[str, str] | os._Environ[str]) -> str:
 
 def plugin_data_dir(env: dict[str, str] | os._Environ[str], host: str) -> Path:
     variable = "CLAUDE_PLUGIN_DATA" if host == "claude-code" else "PLUGIN_DATA"
-    fallback = ".claude-data" if host == "claude-code" else ".codex-data"
-    return Path(env.get(variable, str(PLUGIN_ROOT / fallback)))
+    fallback = Path(env["CLAUDE_PLUGIN_ROOT"]) if host == "claude-code" and env.get("CLAUDE_PLUGIN_ROOT") else PLUGIN_ROOT
+    return Path(env.get(variable, str(fallback / (".claude-data" if host == "claude-code" else ".codex-data"))))
 
 
 def assistant_message_requires_input(value: Any) -> bool:

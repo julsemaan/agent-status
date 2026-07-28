@@ -63,6 +63,12 @@ class ClaudeCodePluginTests(unittest.TestCase):
             queued = list(emitter.control_dir(plugin_data, "claude/session").glob("events/*.json"))
             self.assertEqual(len(queued), 1)
 
+    def test_claude_data_dir_falls_back_to_plugin_root(self):
+        env = {"CLAUDE_PLUGIN_ROOT": "/tmp/claude-plugin"}
+        self.assertEqual(emitter.plugin_data_dir(env, "claude-code"), Path("/tmp/claude-plugin/.claude-data"))
+        env["CLAUDE_PLUGIN_DATA"] = "/tmp/claude-data"
+        self.assertEqual(emitter.plugin_data_dir(env, "claude-code"), Path("/tmp/claude-data"))
+
     def test_payload_uses_claude_identity_metadata_and_prompt_id(self):
         with tempfile.TemporaryDirectory() as tmp:
             state = self.state(Path(tmp))
