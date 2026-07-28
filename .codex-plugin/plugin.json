@@ -1,6 +1,6 @@
 {
   "name": "agent-status",
-  "version": "0.1.13",
+  "version": "0.1.14",
   "description": "Emit Codex session state for local agent-status monitoring.",
   "author": {
     "name": "astatus contributors",
