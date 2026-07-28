@@ -4,7 +4,11 @@ Requirements for building an agent framework extension that emits
 `agent-status/v1alpha1` conformant snapshots. Framework-agnostic: applies to
 pi, Codex, Claude Code, Aider, or any agent runtime that can host extensions.
 
-Reference implementations: `pi-extension/index.js` (pi) and `codex-plugin/emitter.py` (Codex CLI).
+Reference implementations: `pi-extension/index.js` (pi), `opencode-plugin/index.js` (OpenCode), and `codex-plugin/emitter.py` (Codex CLI).
+
+OpenCode mapping: `session.created` creates idle snapshot; `chat.message`, busy/retry status, and tool hooks set `working`; question and permission events set/resume `input-required`; open todos become `submitted` while idle; errors set transient `failed`; `session.idle` clears active task unless trailing assistant text is a question; `session.deleted` and plugin `dispose` remove snapshots. Goal restores asynchronously from first real user message through `client.session.messages()`.
+
+OpenCode limit: sessions with `parentID` are excluded, so child/subagent sessions emit no snapshot.
 
 Codex mapping: `SessionStart` creates idle snapshot; prompts and ordinary tools set `working`; question-tool `PreToolUse` and `PermissionRequest` set `input-required`; question-tool `PostToolUse` resumes `working`; `Stop` sets `input-required` for a trailing question and otherwise clears task; `SessionEnd` removes snapshot. Goal survives resume and compact but resets on clear.
 

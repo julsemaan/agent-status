@@ -51,6 +51,23 @@ For a one-shot extension test without installing it:
 pi -e ./pi-extension/index.js
 ```
 
+## Develop OpenCode plugin
+
+Load repository package by absolute local path in project or global OpenCode config:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": ["file:///home/you/src/astatus"]
+}
+```
+
+Run `opencode` in a test workspace and `agent-status watch` in another terminal. Smoke-test session creation, prompt work, question/permission blocking, idle goal retention, resume goal restoration, and snapshot cleanup on exit. Run plugin tests directly with:
+
+```bash
+node --test opencode-plugin/test/*.test.js
+```
+
 ## Develop Codex CLI integration
 
 Codex CLI with plugin support on Linux/macOS installs the repository as a local marketplace plugin:

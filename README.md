@@ -41,6 +41,25 @@ Install from git:
 pi install git:github.com/you/astatus
 ```
 
+### OpenCode plugin install
+
+OpenCode can load this dependency-free plugin from a local checkout. Add checkout's absolute path to `opencode.json`:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": ["file:///home/you/src/astatus"]
+}
+```
+
+Start OpenCode, then verify snapshots from another terminal:
+
+```bash
+agent-status watch
+```
+
+Top-level sessions appear idle on creation, `working` during prompts/tools, `input-required` for questions and permissions, `submitted` for open todos while idle, and transiently `failed` on session errors. First prompt remains durable goal across resume. Session deletion and plugin disposal remove owned snapshots. Child/subagent sessions are currently excluded.
+
 ### Codex CLI integration
 
 Requires Python 3.10+, Linux or macOS, and a Codex CLI release with plugin support. Verify support with:
