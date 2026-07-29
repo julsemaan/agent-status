@@ -99,7 +99,7 @@ export async function AgentStatusPlugin({ client, directory, project } = {}) {
       },
     };
     if (state.goal) record.goal = state.goal;
-    const summary = state.blocked || state.error || state.active || state.pending || state.trailingQuestion;
+    const summary = state.blocked || state.trailingQuestion || state.error || state.active || state.pending;
     const taskState = state.blocked || state.trailingQuestion ? "input-required"
       : state.error ? "failed"
       : state.active ? "working"

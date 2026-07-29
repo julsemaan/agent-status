@@ -174,9 +174,13 @@ test("tool activity, status, trailing questions, and cleanup", async () => {
     await h.event("session.created", { info: { id: "s1" } });
     await h.hooks["tool.execute.before"]({ sessionID: "s1", tool: "bash" }, {});
     assert.equal(readOnly(h.dir).task.state, "working");
+    await h.event("todo.updated", { sessionID: "s1", todos: [{ content: "Finish tests", status: "pending" }] });
     await h.event("message.part.updated", { part: { sessionID: "s1", type: "text", text: "Need anything else?" } });
     await h.event("session.idle", { sessionID: "s1" });
-    assert.equal(readOnly(h.dir).task.state, "input-required");
+    assert.deepEqual(
+      { state: readOnly(h.dir).task.state, summary: readOnly(h.dir).task.summary },
+      { state: "input-required", summary: "Need anything else?" },
+    );
     await h.event("session.status", { sessionID: "s1", status: { type: "busy" } });
     assert.equal(readOnly(h.dir).task.state, "working");
     await h.hooks.dispose();
