@@ -92,6 +92,18 @@ codex plugin remove agent-status@astatus
 codex plugin marketplace remove astatus
 ```
 
+### Claude Code integration
+
+Requires Python 3.10+ and Claude Code on Linux or macOS. Install marketplace plugin:
+
+```bash
+pip install agent-status
+claude plugin marketplace add julsemaan/astatus
+claude plugin install agent-status@astatus
+```
+
+Plugin adds hooks only: no model tools or MCP server. Hooks map prompts and ordinary tools to `working`, `AskUserQuestion`, `ExitPlanMode`, permission dialogs, and trailing assistant questions to `input-required`, active background work at turn end to `submitted`, and ordinary turn completion to task removal (reader-derived idle). Sidecar emits 20-second heartbeats and removes snapshot on session exit.
+
 ## Development
 
 See [`docs/development.md`](docs/development.md) for local setup, Pi extension loading, tests, and builds.

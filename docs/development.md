@@ -89,11 +89,34 @@ Start a new Codex session, open `/hooks`, and trust the agent-status hooks. Hook
 
 Tests can pass short `--poll-interval` and `--heartbeat-interval` values to `emitter.py sidecar`; production defaults remain 0.1 and 20 seconds.
 
+## Develop Claude Code integration
+
+Claude Code on Linux/macOS can validate and load repository directly:
+
+```bash
+claude plugin validate .
+claude --plugin-dir .
+```
+
+After hook or manifest changes, run `/reload-plugins` in Claude Code. Shared emitter selects Claude paths from `CLAUDE_PLUGIN_ROOT` and `CLAUDE_PLUGIN_DATA`; Codex continues using `PLUGIN_ROOT` and `PLUGIN_DATA`.
+
+Lifecycle mapping:
+
+- `SessionStart`: running snapshot, no task; resume/compact restores goal, clear resets it.
+- `UserPromptSubmit`: first prompt seeds durable goal; every prompt sets `working`.
+- `PreToolUse`: `AskUserQuestion` and `ExitPlanMode` set `input-required`; other tools set `working`.
+- `PermissionRequest`: sets `input-required`.
+- `PostToolUse`: returns to `working`.
+- `Stop`: trailing question sets `input-required`, active background work sets `submitted`, otherwise removes task.
+- `SessionEnd`: stops heartbeat and removes snapshot.
+
 ## Run checks
 
 ```bash
-npm test
 python3 -m unittest
+npm ci
+npm test
+claude plugin validate .
 ```
 
 ## Build Python packages

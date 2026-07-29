@@ -54,7 +54,7 @@ class CodexPluginTests(unittest.TestCase):
         })
         for groups in hooks["hooks"].values():
             command = groups[0]["hooks"][0]["command"]
-            self.assertEqual(command, 'python3 "${PLUGIN_ROOT}/codex-plugin/emitter.py" hook --host-pid "$PPID"')
+            self.assertEqual(command, 'python3 "${CLAUDE_PLUGIN_ROOT:-$PLUGIN_ROOT}/codex-plugin/emitter.py" hook --host-pid "$PPID"')
             self.assertNotIn("git rev-parse", command)
         self.assertEqual(hooks["hooks"]["SessionEnd"][0]["hooks"][0]["timeout"], 3)
         self.assertFalse((ROOT / ".codex" / "hooks.json").exists())

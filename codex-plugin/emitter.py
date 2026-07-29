@@ -54,7 +54,17 @@ def normalize_summary(value: Any) -> str | None:
 
 
 def is_subagent(event: dict[str, Any]) -> bool:
-    return any(key in event for key in ("agent_id", "agent_type", "agent_transcript_path"))
+    return "agent_id" in event or "agent_transcript_path" in event
+
+
+def detect_host(env: dict[str, str] | os._Environ[str]) -> str:
+    return "claude-code" if env.get("CLAUDE_PLUGIN_ROOT") or env.get("CLAUDE_PLUGIN_DATA") else "codex"
+
+
+def plugin_data_dir(env: dict[str, str] | os._Environ[str], host: str) -> Path:
+    variable = "CLAUDE_PLUGIN_DATA" if host == "claude-code" else "PLUGIN_DATA"
+    fallback = Path(env["CLAUDE_PLUGIN_ROOT"]) if host == "claude-code" and env.get("CLAUDE_PLUGIN_ROOT") else PLUGIN_ROOT
+    return Path(env.get(variable, str(fallback / (".claude-data" if host == "claude-code" else ".codex-data"))))
 
 
 def assistant_message_requires_input(value: Any) -> bool:
@@ -62,7 +72,14 @@ def assistant_message_requires_input(value: Any) -> bool:
 
 
 def is_question_tool(value: Any) -> bool:
-    return isinstance(value, str) and (value == "request_user_input" or value.split("__")[-1] == "question")
+    return isinstance(value, str) and (
+        value in {"request_user_input", "AskUserQuestion", "ExitPlanMode"}
+        or value.split("__")[-1] == "question"
+    )
+
+
+def has_background_work(event: dict[str, Any]) -> bool:
+    return any(event.get(key) for key in ("active_background_tasks", "background_tasks"))
 
 
 def parse_tmux_environment(env: dict[str, str] | os._Environ[str]) -> dict[str, str] | None:
@@ -90,8 +107,9 @@ def detect_tmux_environment(host_pid: int) -> dict[str, str] | None:
 
 
 class SessionState:
-    def __init__(self, agent_id: str, host_pid: int, plugin_data: Path):
+    def __init__(self, agent_id: str, host_pid: int, plugin_data: Path, host: str = "codex"):
         self.agent_id = agent_id
+        self.agent_name = host
         self.host_pid = host_pid
         self.plugin_data = plugin_data
         self.resume_without_goal = False
@@ -122,7 +140,7 @@ class SessionState:
             self.goal = goal if not validate_payload({
                 "schema_version": SCHEMA_VERSION,
                 "agent_id": self.agent_id,
-                "agent_name": "codex",
+                "agent_name": self.agent_name,
                 "runtime": {"lifecycle": "running", "updated_at": now_utc()},
                 "goal": goal,
             }) else None
@@ -193,6 +211,8 @@ class SessionState:
             self.last_activity_at = now_utc()
             if assistant_message_requires_input(event.get("last_assistant_message")):
                 self._set_task(event, "input-required", None)
+            elif has_background_work(event):
+                self._set_task(event, "submitted", None)
             else:
                 self.task = None
         elif name == "SessionEnd":
@@ -206,7 +226,7 @@ class SessionState:
     def _set_task(self, event: dict[str, Any], state: str, summary: str | None) -> None:
         previous = self.task or {}
         task: dict[str, str] = {"state": state, "status_timestamp": now_utc()}
-        turn_id = event.get("turn_id")
+        turn_id = event.get("turn_id") or event.get("prompt_id")
         if isinstance(turn_id, str):
             task["id"] = turn_id
         if self.session_id:
@@ -232,22 +252,23 @@ class SessionState:
         payload: dict[str, Any] = {
             "schema_version": SCHEMA_VERSION,
             "agent_id": self.agent_id,
-            "agent_name": "codex",
+            "agent_name": self.agent_name,
             "runtime": runtime,
         }
         if self.goal:
             payload["goal"] = dict(self.goal)
         if self.task:
             payload["task"] = dict(self.task)
-        codex_meta = {}
+        host_meta = {}
         if self.session_id:
-            codex_meta["session_id"] = self.session_id
+            host_meta["session_id"] = self.session_id
         if self.model:
-            codex_meta["model"] = self.model
+            host_meta["model"] = self.model
         if self.permission_mode:
-            codex_meta["permission_mode"] = self.permission_mode
-        if codex_meta or self.tmux:
-            payload["x_meta"] = {"codex": codex_meta, **(self.tmux or {})}
+            host_meta["permission_mode"] = self.permission_mode
+        if host_meta or self.tmux:
+            meta_key = "claude_code" if self.agent_name == "claude-code" else "codex"
+            payload["x_meta"] = {meta_key: host_meta, **(self.tmux or {})}
         return payload
 
 
@@ -274,7 +295,7 @@ def drain_events(control: Path, state: SessionState) -> bool:
     return changed
 
 
-def run_sidecar(control: Path, output_dir: Path, host_pid: int, *,
+def run_sidecar(control: Path, output_dir: Path, host_pid: int, *, host: str = "codex",
                 poll_interval: float = POLL_INTERVAL,
                 heartbeat_interval: float = HEARTBEAT_INTERVAL) -> int:
     control.mkdir(parents=True, exist_ok=True)
@@ -289,13 +310,15 @@ def run_sidecar(control: Path, output_dir: Path, host_pid: int, *,
         try:
             ownership = json.loads(ownership_path.read_text(encoding="utf-8"))
             agent_id = ownership["agent_id"]
-            if not isinstance(agent_id, str) or not re.fullmatch(r"codex-[0-9a-f]{32}", agent_id):
+            prefix = "claude-code" if host == "claude-code" else "codex"
+            if not isinstance(agent_id, str) or not re.fullmatch(rf"{prefix}-[0-9a-f]{{32}}", agent_id):
                 raise ValueError
         except (OSError, json.JSONDecodeError, KeyError, TypeError, ValueError):
-            agent_id = f"codex-{uuid.uuid4().hex}"
+            prefix = "claude-code" if host == "claude-code" else "codex"
+            agent_id = f"{prefix}-{uuid.uuid4().hex}"
             atomic_write_json(ownership_path, {"agent_id": agent_id})
         snapshot = output_dir / f"{agent_id}.json"
-        state = SessionState(agent_id, host_pid, control.parents[1])
+        state = SessionState(agent_id, host_pid, control.parents[1], host)
         last_heartbeat = time.monotonic()
         while True:
             changed = drain_events(control, state)
@@ -329,7 +352,8 @@ def cmd_hook(args: argparse.Namespace) -> int:
         session_id = event.get("session_id")
         if not isinstance(session_id, str) or not session_id:
             return 0
-        plugin_data = Path(os.environ.get("PLUGIN_DATA", str(PLUGIN_ROOT / ".codex-data")))
+        host = detect_host(os.environ)
+        plugin_data = plugin_data_dir(os.environ, host)
         tmux = detect_tmux_environment(args.host_pid)
         if tmux:
             event["_tmux"] = tmux
@@ -337,8 +361,9 @@ def cmd_hook(args: argparse.Namespace) -> int:
         enqueue_event(control, event)
         if event.get("hook_event_name") == "SessionStart":
             subprocess.Popen(
-                [sys.executable, str(Path(__file__).resolve()), "sidecar", "--host-pid", str(args.host_pid),
-                 "--control-dir", str(control), "--status-dir", str(default_status_dir())],
+                [sys.executable, str(Path(__file__).resolve()), "sidecar", "--host", host,
+                 "--host-pid", str(args.host_pid), "--control-dir", str(control),
+                 "--status-dir", str(default_status_dir())],
                 stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                 start_new_session=True, close_fds=True,
             )
@@ -356,13 +381,14 @@ def build_parser() -> argparse.ArgumentParser:
     hook.add_argument("--host-pid", required=True, type=int)
     hook.set_defaults(func=cmd_hook)
     sidecar = commands.add_parser("sidecar")
+    sidecar.add_argument("--host", choices=("codex", "claude-code"), default="codex")
     sidecar.add_argument("--host-pid", required=True, type=int)
     sidecar.add_argument("--control-dir", required=True, type=Path)
     sidecar.add_argument("--status-dir", required=True, type=Path)
     sidecar.add_argument("--poll-interval", type=float, default=POLL_INTERVAL)
     sidecar.add_argument("--heartbeat-interval", type=float, default=HEARTBEAT_INTERVAL)
     sidecar.set_defaults(func=lambda args: run_sidecar(
-        args.control_dir, args.status_dir, args.host_pid,
+        args.control_dir, args.status_dir, args.host_pid, host=args.host,
         poll_interval=args.poll_interval, heartbeat_interval=args.heartbeat_interval,
     ))
     return parser

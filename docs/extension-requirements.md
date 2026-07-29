@@ -4,11 +4,13 @@ Requirements for building an agent framework extension that emits
 `agent-status/v1alpha1` conformant snapshots. Framework-agnostic: applies to
 pi, Codex, Claude Code, Aider, or any agent runtime that can host extensions.
 
-Reference implementations: `pi-extension/index.js` (pi), `opencode-plugin/index.js` (OpenCode), and `codex-plugin/emitter.py` (Codex CLI).
+Reference implementations: `pi-extension/index.js` (pi), `opencode-plugin/index.js` (OpenCode), and `codex-plugin/emitter.py` (Codex CLI and Claude Code).
 
 OpenCode mapping: `session.created` creates idle snapshot; `chat.message`, busy/retry status, and tool hooks set `working`; question and permission events set/resume `input-required`; open todos become `submitted` while idle; errors set transient `failed`; `session.idle` clears active task unless trailing assistant text is a question; `session.deleted` and plugin `dispose` remove snapshots. Goal restores asynchronously from first real user message through `client.session.messages()`.
 
 OpenCode limit: sessions with `parentID` are excluded, so child/subagent sessions emit no snapshot.
+
+Claude Code mapping: `SessionStart` creates running snapshot without task; prompts and ordinary tools set `working`; `AskUserQuestion`, `ExitPlanMode`, permission dialogs, and trailing assistant questions set `input-required`; completed tools resume `working`; `Stop` uses `submitted` only for active background work and otherwise clears task; `SessionEnd` removes snapshot. Goal survives resume and compact but resets on clear. Hooks carrying `agent_id` are subagent events and are ignored.
 
 Codex mapping: `SessionStart` creates idle snapshot; prompts and ordinary tools set `working`; question-tool `PreToolUse` and `PermissionRequest` set `input-required`; question-tool `PostToolUse` resumes `working`; `Stop` sets `input-required` for a trailing question and otherwise clears task; `SessionEnd` removes snapshot. Goal survives resume and compact but resets on clear.
 
@@ -545,15 +547,15 @@ file on clean exit.
 
 ### 12.1 Extension Entry Point
 
-The emitter MUST export a factory function that receives the host's extension
-API. The factory may be synchronous or async.
+The emitter MUST use host-native extension entry mechanism. API-based hosts may load a synchronous or async factory; hook-based hosts may invoke an executable that reads event JSON from stdin.
 
 ```typescript
-// Pi-style
+// Pi-style factory
 export default function (pi: ExtensionAPI) { ... }
+```
 
-// Generic pseudocode
-function createExtension(host: HostAPI) { ... }
+```json
+{"type": "command", "command": "python3 emitter.py hook"}
 ```
 
 ### 12.2 Guard Against Double-Load
