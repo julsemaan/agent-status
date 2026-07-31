@@ -193,9 +193,9 @@ Repository setup required before the first release:
 
 - Add a `v*` tag ruleset restricted to release maintainers; block tag updates and deletion.
 - Confirm the `pypi` environment exists. Optionally require approval before publication.
-- Configure the PyPI Trusted Publisher for repository `julsemaan/astatus`, workflow `.github/workflows/publish-pypi.yml`, and environment `pypi`.
+- Configure the PyPI Trusted Publisher for repository `julsemaan/astatus`, workflow `.github/workflows/publish.yml`, and environment `pypi`.
 - Bootstrap npm once from exact tagged commit with `npm login` then `npm publish ./opencode-plugin --access public`; never store npm credentials in repository.
-- Configure npm Trusted Publisher for owner `julsemaan`, repository `astatus`, workflow `publish-pypi.yml`, environment `npm`, and `npm publish` permission.
+- Configure npm Trusted Publisher for owner `julsemaan`, repository `astatus`, workflow `publish.yml`, environment `npm`, and `npm publish` permission.
 - Configure npm package publishing access to require 2FA and disallow tokens.
 - Do not store PyPI or npm credentials in repository secrets.
 
