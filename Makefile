@@ -32,5 +32,5 @@ do-release:
 	@$(MAKE) bump-version BUMP="$(or $(BUMP),patch)" VERSION="$(VERSION)" && \
 	VERSION=$$(python3 -c 'import json; print(json.load(open("package.json"))["version"])') && \
 	git commit -m "Release version $$VERSION" -- package.json package-lock.json opencode-plugin/package.json pyproject.toml .codex-plugin/plugin.json .claude-plugin/plugin.json .claude-plugin/marketplace.json && \
-	git tag -a "$$VERSION" -m "Release version $$VERSION" && \
-	git push --atomic origin HEAD "$$VERSION"
+	git tag -a "v$$VERSION" -m "Release version $$VERSION" && \
+	git push --atomic origin HEAD "v$$VERSION"
