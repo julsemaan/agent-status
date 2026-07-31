@@ -1,0 +1,29 @@
+{
+  "name": "agent-status",
+  "version": "0.1.15",
+  "description": "OpenCode plugin for local agent status snapshots",
+  "type": "module",
+  "main": "index.js",
+  "files": [
+    "index.js"
+  ],
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "prepublishOnly": "npm test"
+  },
+  "keywords": [
+    "opencode",
+    "plugin",
+    "agent-status"
+  ],
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/julsemaan/astatus.git",
+    "directory": "opencode-plugin"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
+}

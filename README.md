@@ -43,12 +43,12 @@ pi install git:github.com/you/astatus
 
 ### OpenCode plugin install
 
-OpenCode can load this dependency-free plugin from a local checkout. Add checkout's absolute path to `opencode.json`:
+OpenCode installs this dependency-free plugin from npm. Add package name to `opencode.json`:
 
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["file:///home/you/src/astatus"]
+  "plugin": ["agent-status"]
 }
 ```
 

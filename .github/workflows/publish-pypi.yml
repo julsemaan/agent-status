@@ -64,6 +64,8 @@ jobs:
               package = json.load(file)
           with open("package-lock.json") as file:
               package_lock = json.load(file)
+          with open("opencode-plugin/package.json") as file:
+              opencode_plugin = json.load(file)
           with open(".codex-plugin/plugin.json") as file:
               plugin = json.load(file)
 
@@ -73,6 +75,7 @@ jobs:
               "package.json": package["version"],
               "package-lock.json": package_lock["version"],
               "package-lock.json root package": package_lock["packages"][""]["version"],
+              "opencode-plugin/package.json": opencode_plugin["version"],
               ".codex-plugin/plugin.json": plugin["version"],
           }
           mismatches = {name: version for name, version in versions.items() if version != expected}
@@ -89,6 +92,11 @@ jobs:
 
       - name: Run JavaScript tests
         run: npm test
+
+      - name: Validate npm package
+        run: |
+          npm --prefix opencode-plugin test
+          npm pack ./opencode-plugin --dry-run --json
 
       - name: Build and check package
         run: |
@@ -121,8 +129,34 @@ jobs:
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@ec4db0b4ddc65acdf4bff5fa45ac92d78b56bdf0 # v1.9.0
 
+  publish-npm:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: npm
+      url: https://www.npmjs.com/package/agent-status
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: opencode-plugin
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          registry-url: https://registry.npmjs.org
+
+      - name: Install trusted publishing npm version
+        run: npm install --global npm@11.5.1
+
+      - name: Publish to npm
+        run: npm publish
+
   publish-github:
-    needs: publish-pypi
+    needs: [publish-pypi, publish-npm]
     runs-on: ubuntu-latest
     permissions:
       contents: write
