@@ -48,7 +48,7 @@ OpenCode installs this dependency-free plugin from npm. Add package name to `ope
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["agent-status"]
+  "plugin": ["agent-status-opencode"]
 }
 ```
 

@@ -9,7 +9,7 @@ Add package name to `opencode.json`:
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["agent-status"]
+  "plugin": ["agent-status-opencode"]
 }
 ```
 

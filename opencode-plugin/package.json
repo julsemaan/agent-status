@@ -1,5 +1,5 @@
 {
-  "name": "agent-status",
+  "name": "agent-status-opencode",
   "version": "0.1.22",
   "description": "OpenCode plugin for local agent status snapshots",
   "type": "module",

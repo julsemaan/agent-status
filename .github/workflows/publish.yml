@@ -135,7 +135,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: npm
-      url: https://www.npmjs.com/package/agent-status
+      url: https://www.npmjs.com/package/agent-status-opencode
     permissions:
       contents: read
       id-token: write

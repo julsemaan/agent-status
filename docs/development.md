@@ -184,7 +184,7 @@ Verify the release:
 
 - Release workflow is green.
 - PyPI version is available.
-- npm package version and metadata are correct: `npm view agent-status version dist-tags repository`.
+- npm package version and metadata are correct: `npm view agent-status-opencode version dist-tags repository`.
 - GitHub Release is published.
 - Wheel and source distribution are attached.
 - A fresh virtual environment can install the released wheel.
