@@ -114,6 +114,12 @@ export async function AgentStatusPlugin({ client, directory, project } = {}) {
     writeStatusFile(state.file, record);
   };
 
+  const agentId = createAgentId();
+  const processState = { agentId, file: path.join(statusDir, `${agentId}.json`) };
+  flush(processState);
+  processState.heartbeat = setInterval(() => flush(processState), HEARTBEAT_INTERVAL_MS);
+  processState.heartbeat.unref?.();
+
   const touch = (state, active) => {
     if (!state) return;
     state.lastActivity = nowUtc();
@@ -142,21 +148,15 @@ export async function AgentStatusPlugin({ client, directory, project } = {}) {
     const id = info.id || properties.sessionID;
     if (!id || info.parentID || sessions.has(id) || owners().has(id)) return;
     owners().set(id, owner);
-    const agentId = createAgentId();
-    const state = { sessionID: id, agentId, file: path.join(statusDir, `${agentId}.json`) };
-    sessions.set(id, state);
-    flush(state);
-    state.heartbeat = setInterval(() => flush(state), HEARTBEAT_INTERVAL_MS);
-    state.heartbeat.unref?.();
-    void restoreGoal(state);
-    return state;
+    sessions.clear();
+    Object.assign(processState, { sessionID: id, goal: undefined, active: undefined, blocked: undefined, error: undefined, pending: undefined, trailingQuestion: undefined, assistantText: undefined, lastActivity: undefined });
+    sessions.set(id, processState);
+    flush(processState);
+    void restoreGoal(processState);
+    return processState;
   };
 
   const remove = id => {
-    const state = sessions.get(id);
-    if (!state) return;
-    clearInterval(state.heartbeat);
-    fs.rmSync(state.file, { force: true });
     sessions.delete(id);
     if (owners().get(id) === owner) owners().delete(id);
   };
@@ -218,7 +218,14 @@ export async function AgentStatusPlugin({ client, directory, project } = {}) {
     if (input.tool === "question") state.blocked = undefined;
     touch(state, state.active || `Using ${input.tool}`);
   };
-  const dispose = async () => { for (const id of [...sessions.keys()]) remove(id); };
+  const dispose = async () => {
+    if (processState) {
+      clearInterval(processState.heartbeat);
+      fs.rmSync(processState.file, { force: true });
+    }
+    sessions.clear();
+    for (const [id, value] of owners()) if (value === owner) owners().delete(id);
+  };
 
   return { event, dispose, "chat.message": chatMessage, "tool.execute.before": toolBefore, "tool.execute.after": toolAfter };
 }

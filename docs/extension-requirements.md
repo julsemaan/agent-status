@@ -6,7 +6,7 @@ pi, Codex, Claude Code, Aider, or any agent runtime that can host extensions.
 
 Reference implementations: `pi-extension/index.js` (pi), `opencode-plugin/index.js` (OpenCode), and `codex-plugin/emitter.py` (Codex CLI and Claude Code).
 
-OpenCode mapping: `session.created` creates idle snapshot; `chat.message`, busy/retry status, and tool hooks set `working`; question and permission events set/resume `input-required`; open todos become `submitted` while idle; errors set transient `failed`; `session.idle` clears active task unless trailing assistant text is a question; `session.deleted` and plugin `dispose` remove snapshots. Goal restores asynchronously from first real user message through `client.session.messages()`.
+OpenCode mapping: plugin initialization creates process-scoped idle snapshot without session metadata; `session.created` attaches session ID to same snapshot; `chat.message`, busy/retry status, and tool hooks set `working`; question and permission events set/resume `input-required`; open todos become `submitted` while idle; errors set transient `failed`; `session.idle` clears active task unless trailing assistant text is a question; `session.deleted` detaches session ownership while keeping process snapshot, and plugin `dispose` removes snapshot. Goal restores asynchronously from first real user message through `client.session.messages()`.
 
 OpenCode limit: sessions with `parentID` are excluded, so child/subagent sessions emit no snapshot.
 

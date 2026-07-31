@@ -67,6 +67,20 @@ test("tmux metadata requires valid socket and pane pair", () => {
   assert.equal(parseTmuxEnvironment({ TMUX: "/tmp/a,no,3", TMUX_PANE: "%4" }), undefined);
 });
 
+test("plugin initialization writes idle process snapshot before session creation", async () => {
+  const h = await harness();
+  try {
+    const idle = readOnly(h.dir);
+    assert.equal("task" in idle, false);
+    assert.equal("session_id" in idle.x_meta.opencode, false);
+
+    await h.event("session.created", { info: { id: "s1" } });
+    const attached = readOnly(h.dir);
+    assert.equal(attached.agent_id, idle.agent_id);
+    assert.equal(attached.x_meta.opencode.session_id, "s1");
+  } finally { await h.hooks.dispose(); h.restore(); }
+});
+
 test("session lifecycle keeps first goal and clears task on idle", async () => {
   const h = await harness();
   try {
@@ -152,18 +166,22 @@ test("restores goal from resumed session messages", async () => {
   } finally { await h.hooks.dispose(); h.restore(); }
 });
 
-test("sessions stay isolated; child and duplicate owners are excluded", async () => {
+test("new chats reuse process entry; child and duplicate owners are excluded", async () => {
   const h1 = await harness();
   const h2 = await harness();
   try {
     await h1.event("session.created", { info: { id: "parent" } });
+    const agentId = readOnly(h1.dir).agent_id;
     await h1.event("session.created", { info: { id: "child", parentID: "parent" } });
     await h2.event("session.created", { info: { id: "parent" } });
     assert.equal(fs.readdirSync(h1.dir).filter(x => x.endsWith(".json")).length, 1);
-    assert.equal(fs.readdirSync(h2.dir).filter(x => x.endsWith(".json")).length, 0);
+    assert.equal(fs.readdirSync(h2.dir).filter(x => x.endsWith(".json")).length, 1);
+    assert.equal("session_id" in readOnly(h2.dir).x_meta.opencode, false);
     await h1.event("session.created", { info: { id: "other" } });
-    assert.equal(fs.readdirSync(h1.dir).filter(x => x.endsWith(".json")).length, 2);
-    await h1.event("session.deleted", { info: { id: "parent" } });
+    assert.equal(fs.readdirSync(h1.dir).filter(x => x.endsWith(".json")).length, 1);
+    assert.equal(readOnly(h1.dir).agent_id, agentId);
+    assert.equal(readOnly(h1.dir).x_meta.opencode.session_id, "other");
+    await h1.event("session.deleted", { info: { id: "other" } });
     assert.equal(fs.readdirSync(h1.dir).filter(x => x.endsWith(".json")).length, 1);
   } finally { await h1.hooks.dispose(); await h2.hooks.dispose(); h1.restore(); h2.restore(); }
 });
