@@ -8,7 +8,7 @@
       "name": "agent-status",
       "source": "./",
       "description": "Publish Claude Code session state for local agent-status monitoring.",
-      "version": "0.1.15"
+      "version": "0.1.17"
     }
   ]
 }
