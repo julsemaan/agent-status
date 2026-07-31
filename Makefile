@@ -5,7 +5,7 @@ bump-version:
 	{ echo 'import json, os, re'; \
 	  echo 'b=os.environ["BUMP"]; version=os.environ["VERSION"]'; \
 	  echo 'if version and not re.fullmatch(r"\d+\.\d+\.\d+", version): raise SystemExit("VERSION must be X.Y.Z")'; \
-	  echo 'for f in ("package.json", "pyproject.toml", ".codex-plugin/plugin.json", ".claude-plugin/plugin.json", ".claude-plugin/marketplace.json"):'; \
+	  echo 'for f in ("package.json", "opencode-plugin/package.json", "pyproject.toml", ".codex-plugin/plugin.json", ".claude-plugin/plugin.json", ".claude-plugin/marketplace.json"):'; \
 	  echo '  txt=open(f).read()'; \
 	  echo '  m=re.search(r"version\s*=\s*\"(\d+\.\d+\.\d+)\"", txt) if "pyproject" in f else None'; \
 	  echo '  if m:'; \

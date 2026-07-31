@@ -1,6 +1,6 @@
 {
   "name": "agent-status",
-  "version": "0.1.14",
+  "version": "0.1.15",
   "description": "Publish Claude Code session state for local agent-status monitoring.",
   "author": {
     "name": "astatus contributors",
@@ -9,5 +9,9 @@
   "homepage": "https://github.com/julsemaan/astatus#readme",
   "repository": "https://github.com/julsemaan/astatus",
   "license": "Apache-2.0",
-  "keywords": ["agent-status", "claude-code", "monitoring"]
+  "keywords": [
+    "agent-status",
+    "claude-code",
+    "monitoring"
+  ]
 }

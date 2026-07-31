@@ -51,6 +51,28 @@ For a one-shot extension test without installing it:
 pi -e ./pi-extension/index.js
 ```
 
+## Develop OpenCode plugin
+
+Load repository package by absolute local path in project or global OpenCode config:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": ["file:///home/you/src/astatus"]
+}
+```
+
+Run `opencode` in a test workspace and `agent-status watch` in another terminal. Smoke-test session creation, prompt work, question/permission blocking, idle goal retention, resume goal restoration, and snapshot cleanup on exit.
+
+Validate npm package from repository root:
+
+```bash
+npm --prefix opencode-plugin test
+npm pack ./opencode-plugin --dry-run --json
+```
+
+Dry-run output must contain only `index.js`, `package.json`, `README.md`, and `LICENSE`.
+
 ## Develop Codex CLI integration
 
 Codex CLI with plugin support on Linux/macOS installs the repository as a local marketplace plugin:
@@ -99,6 +121,8 @@ Lifecycle mapping:
 python3 -m unittest
 npm ci
 npm test
+npm --prefix opencode-plugin test
+npm pack ./opencode-plugin --dry-run
 claude plugin validate .
 ```
 
@@ -122,7 +146,7 @@ agent-status --help
 
 ## Release
 
-Releases use annotated `vMAJOR.MINOR.PATCH` tags. PyPI and GitHub Releases receive the same wheel and source distribution. PyPI already contains `0.1.10`, so the next release must be `v0.1.11` or newer.
+Releases use annotated `vMAJOR.MINOR.PATCH` tags. PyPI, npm, and GitHub Releases use one synchronized version. Published versions are immutable; recover from a broken release with a new patch version.
 
 Prepare and verify a version bump:
 
@@ -134,6 +158,8 @@ make bump-version BUMP=patch
 python3 -m unittest
 npm ci
 npm test
+npm --prefix opencode-plugin test
+npm pack ./opencode-plugin --dry-run
 python -m build
 twine check dist/*
 ```
@@ -141,7 +167,7 @@ twine check dist/*
 Commit the changed manifests on a branch and merge them through a pull request:
 
 ```bash
-git add pyproject.toml package.json package-lock.json .codex-plugin/plugin.json
+git add pyproject.toml package.json package-lock.json opencode-plugin/package.json .codex-plugin/plugin.json .claude-plugin/plugin.json .claude-plugin/marketplace.json
 git commit -m "chore(release): bump version to X.Y.Z"
 ```
 
@@ -158,6 +184,7 @@ Verify the release:
 
 - Release workflow is green.
 - PyPI version is available.
+- npm package version and metadata are correct: `npm view agent-status version dist-tags repository`.
 - GitHub Release is published.
 - Wheel and source distribution are attached.
 - A fresh virtual environment can install the released wheel.
@@ -166,12 +193,16 @@ Repository setup required before the first release:
 
 - Add a `v*` tag ruleset restricted to release maintainers; block tag updates and deletion.
 - Confirm the `pypi` environment exists. Optionally require approval before publication.
-- Configure the PyPI Trusted Publisher for repository `julsemaan/astatus`, workflow `.github/workflows/publish-pypi.yml`, and environment `pypi`.
-- Do not store PyPI credentials in repository secrets.
+- Configure the PyPI Trusted Publisher for repository `julsemaan/astatus`, workflow `.github/workflows/publish.yml`, and environment `pypi`.
+- Bootstrap npm once from exact tagged commit with `npm login` then `npm publish ./opencode-plugin --access public`; never store npm credentials in repository.
+- Configure npm Trusted Publisher for owner `julsemaan`, repository `astatus`, workflow `publish.yml`, environment `npm`, and `npm publish` permission.
+- Configure npm package publishing access to require 2FA and disallow tokens.
+- Do not store PyPI or npm credentials in repository secrets.
 
 Recovery rules:
 
 - Before PyPI publication, fix the commit and recreate the tag only after deleting the unpublished bad tag.
-- After PyPI publication, never move or reuse the tag or version.
-- For a broken published release, yank the package when necessary, then issue a patch release.
-- If GitHub Release publication fails after PyPI succeeds, rerun the failed job or repair the release assets manually.
+- After PyPI or npm publication, never move or reuse the tag or version.
+- For a broken published release, deprecate/yank it when necessary, then issue a patch release.
+- If one registry publishes and another job fails, keep published artifacts immutable, fix failure, and release a patch if rerunning cannot safely complete missing publication.
+- If GitHub Release publication fails after registry publication, rerun failed job or repair release assets manually.

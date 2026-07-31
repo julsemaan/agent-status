@@ -1,16 +1,19 @@
 {
   "name": "agent-status",
-  "version": "0.1.14",
+  "version": "0.1.15",
   "description": "agent-status standard plus pi extension emitter",
+  "private": true,
   "keywords": [
     "pi-package",
     "pi",
+    "opencode",
     "extension",
     "agent-status"
   ],
   "type": "module",
+  "main": "./opencode-plugin/index.js",
   "scripts": {
-    "test": "node --test pi-extension/test/*.test.js"
+    "test": "node --test pi-extension/test/*.test.js opencode-plugin/test/*.test.js"
   },
   "pi": {
     "extensions": [
