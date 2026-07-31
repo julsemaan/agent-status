@@ -119,6 +119,11 @@ export async function AgentStatusPlugin({ client, directory, project } = {}) {
   flush(processState);
   processState.heartbeat = setInterval(() => flush(processState), HEARTBEAT_INTERVAL_MS);
   processState.heartbeat.unref?.();
+  const cleanup = () => {
+    clearInterval(processState.heartbeat);
+    fs.rmSync(processState.file, { force: true });
+  };
+  process.once("exit", cleanup);
 
   const touch = (state, active) => {
     if (!state) return;
@@ -213,10 +218,8 @@ export async function AgentStatusPlugin({ client, directory, project } = {}) {
     touch(state, state.active || `Using ${input.tool}`);
   };
   const dispose = async () => {
-    if (processState) {
-      clearInterval(processState.heartbeat);
-      fs.rmSync(processState.file, { force: true });
-    }
+    process.removeListener("exit", cleanup);
+    cleanup();
     sessions.clear();
     for (const [id, value] of owners()) if (value === owner) owners().delete(id);
   };

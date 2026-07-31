@@ -81,6 +81,17 @@ test("plugin initialization writes idle process snapshot before session creation
   } finally { await h.hooks.dispose(); h.restore(); }
 });
 
+test("process exit removes idle snapshot", async () => {
+  const before = new Set(process.listeners("exit"));
+  const h = await harness();
+  try {
+    const cleanup = process.listeners("exit").find(listener => !before.has(listener));
+    assert.ok(cleanup);
+    cleanup();
+    assert.deepEqual(fs.readdirSync(h.dir), []);
+  } finally { await h.hooks.dispose(); h.restore(); }
+});
+
 test("session lifecycle keeps first goal and clears task on idle", async () => {
   const h = await harness();
   try {
