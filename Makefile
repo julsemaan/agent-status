@@ -27,3 +27,7 @@ bump-version:
 	  echo '    open(f,"a").write(chr(10))'; \
 	  echo '  print(f"{f}: {nv}")'; \
 	} | python3 && npm install --package-lock-only --silent
+
+do-release:
+	git tag -a $(VERSION) -m "Release version $(VERSION)"
+	git push origin $(VERSION)
