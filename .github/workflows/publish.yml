@@ -38,6 +38,7 @@ jobs:
             echo "::error::Tag must match vMAJOR.MINOR.PATCH: $TAG"
             exit 1
           fi
+          git fetch --force origin "refs/tags/$TAG:refs/tags/$TAG"
           if [ "$(git cat-file -t "refs/tags/$TAG")" != tag ]; then
             echo "::error::Release tag must be annotated: $TAG"
             exit 1
