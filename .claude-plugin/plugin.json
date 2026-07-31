@@ -1,6 +1,6 @@
 {
   "name": "agent-status",
-  "version": "0.1.23",
+  "version": "0.1.24",
   "description": "Publish Claude Code session state for local agent-status monitoring.",
   "author": {
     "name": "astatus contributors",
