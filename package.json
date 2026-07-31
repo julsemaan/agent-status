@@ -1,6 +1,6 @@
 {
   "name": "agent-status",
-  "version": "0.1.25",
+  "version": "0.1.26",
   "description": "agent-status standard plus pi extension emitter",
   "private": true,
   "keywords": [
