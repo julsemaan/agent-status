@@ -29,5 +29,7 @@ bump-version:
 	} | python3 && npm install --package-lock-only --silent
 
 do-release:
-	git tag -a $(VERSION) -m "Release version $(VERSION)"
-	git push origin $(VERSION)
+	@$(MAKE) bump-version BUMP="$(or $(BUMP),patch)" VERSION="$(VERSION)" && \
+	VERSION=$$(python3 -c 'import json; print(json.load(open("package.json"))["version"])') && \
+	git tag -a "$$VERSION" -m "Release version $$VERSION" && \
+	git push origin "$$VERSION"
