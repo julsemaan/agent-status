@@ -99,8 +99,8 @@ export async function AgentStatusPlugin({ client, directory, project } = {}) {
       },
     };
     if (state.goal) record.goal = state.goal;
-    const summary = state.blocked || state.trailingQuestion || state.error || state.active || state.pending;
-    const taskState = state.blocked || state.trailingQuestion ? "input-required"
+    const summary = state.blocked || state.error || state.active || state.pending;
+    const taskState = state.blocked ? "input-required"
       : state.error ? "failed"
       : state.active ? "working"
       : state.pending ? "submitted"
@@ -126,7 +126,6 @@ export async function AgentStatusPlugin({ client, directory, project } = {}) {
     if (active) {
       state.active = state.active || active;
       state.error = undefined;
-      state.trailingQuestion = undefined;
     }
     flush(state);
   };
@@ -149,7 +148,7 @@ export async function AgentStatusPlugin({ client, directory, project } = {}) {
     if (!id || info.parentID || sessions.has(id) || owners().has(id)) return;
     owners().set(id, owner);
     sessions.clear();
-    Object.assign(processState, { sessionID: id, goal: undefined, active: undefined, blocked: undefined, error: undefined, pending: undefined, trailingQuestion: undefined, assistantText: undefined, lastActivity: undefined });
+    Object.assign(processState, { sessionID: id, goal: undefined, active: undefined, blocked: undefined, error: undefined, pending: undefined, lastActivity: undefined });
     sessions.set(id, processState);
     flush(processState);
     void restoreGoal(processState);
@@ -181,14 +180,9 @@ export async function AgentStatusPlugin({ client, directory, project } = {}) {
       state.error = summarize(p.error?.message || p.error?.name || "Session failed");
       state.active = undefined;
       flush(state);
-    } else if (event.type === "message.part.updated" && p.part?.type === "text") {
-      state.assistantText = p.part.text || "";
-    } else if (event.type === "message.updated" && p.info?.role === "assistant") {
-      state.assistantText = p.info.text || state.assistantText;
     } else if (event.type === "session.idle") {
       state.active = undefined;
       state.error = undefined;
-      state.trailingQuestion = state.blocked ? undefined : /\?\s*$/.test(state.assistantText || "") ? summarize(state.assistantText) : undefined;
       flush(state);
     }
   };
@@ -200,7 +194,7 @@ export async function AgentStatusPlugin({ client, directory, project } = {}) {
     if (!prompt) return;
     if (!state.goal) state.goal = { summary: prompt, updated_at: nowUtc(), source: "initial-prompt" };
     state.active = prompt;
-    state.blocked = state.error = state.trailingQuestion = undefined;
+    state.blocked = state.error = undefined;
     touch(state);
   };
 

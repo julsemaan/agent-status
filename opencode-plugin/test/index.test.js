@@ -110,7 +110,7 @@ test("session lifecycle keeps first goal and clears task on idle", async () => {
   } finally { await h.hooks.dispose(); h.restore(); }
 });
 
-test("question and permission block then resume working", async () => {
+test("question tool and permission events block for input", async () => {
   const h = await harness();
   try {
     await h.event("session.created", { info: { id: "s1" } });
@@ -186,7 +186,7 @@ test("new chats reuse process entry; child and duplicate owners are excluded", a
   } finally { await h1.hooks.dispose(); await h2.hooks.dispose(); h1.restore(); h2.restore(); }
 });
 
-test("tool activity, status, trailing questions, and cleanup", async () => {
+test("tool activity, status, assistant questions, and cleanup", async () => {
   const h = await harness();
   try {
     await h.event("session.created", { info: { id: "s1" } });
@@ -197,7 +197,7 @@ test("tool activity, status, trailing questions, and cleanup", async () => {
     await h.event("session.idle", { sessionID: "s1" });
     assert.deepEqual(
       { state: readOnly(h.dir).task.state, summary: readOnly(h.dir).task.summary },
-      { state: "input-required", summary: "Need anything else?" },
+      { state: "submitted", summary: "Finish tests" },
     );
     await h.event("session.status", { sessionID: "s1", status: { type: "busy" } });
     assert.equal(readOnly(h.dir).task.state, "working");

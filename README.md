@@ -58,7 +58,7 @@ Start OpenCode, then verify snapshots from another terminal:
 agent-status watch
 ```
 
-OpenCode runtime appears idle as soon as plugin loads, before any prompt or session exists. Session metadata attaches later to same entry; prompts/tools set `working`, questions and permissions set `input-required`, open todos while idle set `submitted`, and session errors transiently set `failed`. First prompt remains durable goal across resume. Session deletion keeps process snapshot; plugin disposal removes it. Child/subagent sessions are currently excluded.
+OpenCode runtime appears idle as soon as plugin loads, before any prompt or session exists. Session metadata attaches later to same entry; prompts/tools set `working`, question-tool and permission events set `input-required`, open todos while idle set `submitted`, and session errors transiently set `failed`. First prompt remains durable goal across resume. Session deletion keeps process snapshot; plugin disposal removes it. Child/subagent sessions are currently excluded.
 
 ### Codex CLI integration
 
