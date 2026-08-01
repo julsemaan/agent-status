@@ -163,6 +163,7 @@ async function llmSummarize(prompt, ctx) {
 }
 
 export default function agentStatusPiExtension(pi) {
+  if (process.env.PI_SUBAGENT === "1") return;
   if (pi[EXTENSION_LOADED]) return;
   pi[EXTENSION_LOADED] = true;
 

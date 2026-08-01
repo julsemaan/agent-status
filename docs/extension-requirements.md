@@ -6,6 +6,8 @@ pi, Codex, Claude Code, Aider, or any agent runtime that can host extensions.
 
 Reference implementations: `pi-extension/index.js` (pi), `opencode-plugin/index.js` (OpenCode), and `codex-plugin/emitter.py` (Codex CLI and Claude Code).
 
+Pi-specific behavior: processes with `PI_SUBAGENT=1` are excluded before extension handlers register, so child/subagent processes emit no snapshot. Parent and ordinary `--no-session` Pi processes remain enabled.
+
 OpenCode mapping: plugin initialization creates process-scoped idle snapshot without session metadata; `session.created` attaches session ID to same snapshot; `chat.message`, busy/retry status, and tool hooks set `working`; question-tool and permission events set/resume `input-required`; open todos become `submitted` while idle; errors set transient `failed`; `session.idle` clears active task; `session.deleted` detaches session ownership while keeping process snapshot, and plugin `dispose` removes snapshot. Goal restores asynchronously from first real user message through `client.session.messages()`.
 
 OpenCode limit: sessions with `parentID` are excluded, so child/subagent sessions emit no snapshot.

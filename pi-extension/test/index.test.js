@@ -177,6 +177,35 @@ test("extension session_start writes uuid-based status file", async () => {
   }
 });
 
+test("extension ignores Pi subagent processes", async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "agent-status-subagent-"));
+  const previousSubagent = process.env.PI_SUBAGENT;
+  const previousStatusDir = process.env.AGENT_STATUS_DIR;
+  process.env.PI_SUBAGENT = "1";
+  process.env.AGENT_STATUS_DIR = tmp;
+
+  const handlers = new Map();
+  const pi = {
+    on(event, handler) {
+      handlers.set(event, handler);
+    },
+  };
+
+  try {
+    agentStatusPiExtension(pi);
+    await handlers.get("session_start")?.({ reason: "startup" }, { cwd: "/work/tree" });
+
+    assert.equal(handlers.size, 0);
+    assert.deepEqual(fs.readdirSync(tmp), []);
+  } finally {
+    if (previousSubagent === undefined) delete process.env.PI_SUBAGENT;
+    else process.env.PI_SUBAGENT = previousSubagent;
+    if (previousStatusDir === undefined) delete process.env.AGENT_STATUS_DIR;
+    else process.env.AGENT_STATUS_DIR = previousStatusDir;
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test("extension ignores duplicate load on same pi instance", async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "agent-status-ext-"));
   const previous = process.env.AGENT_STATUS_DIR;

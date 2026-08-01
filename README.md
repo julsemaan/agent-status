@@ -41,6 +41,8 @@ Install from git:
 pi install git:github.com/julsemaan/agent-status
 ```
 
+Pi child/subagent processes marked `PI_SUBAGENT=1` are excluded from status snapshots to prevent duplicate parent/child entries. Parent and ordinary `--no-session` Pi processes continue to emit normally.
+
 ### OpenCode plugin install
 
 OpenCode installs this dependency-free plugin from npm. Add package name to `opencode.json`:
