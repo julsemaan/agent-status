@@ -12,9 +12,9 @@ Structure follows `ponytail` pattern:
 From repo root:
 
 ```bash
-pi install /path/to/astatus
+pi install /path/to/agent-status
 # or
-pi install git:github.com/you/astatus
+pi install git:github.com/julsemaan/agent-status
 ```
 
 Do not install `./pi-extension` path itself. That directory is dev-local test harness, not package root.

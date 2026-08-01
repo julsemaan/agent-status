@@ -38,7 +38,7 @@ pip install agent-status
 Install from git:
 
 ```bash
-pi install git:github.com/you/astatus
+pi install git:github.com/julsemaan/agent-status
 ```
 
 ### OpenCode plugin install
@@ -72,8 +72,8 @@ Install the status CLI and plugin marketplace:
 
 ```bash
 pip install agent-status
-codex plugin marketplace add julsemaan/astatus
-codex plugin add agent-status@astatus
+codex plugin marketplace add julsemaan/agent-status
+codex plugin add agent-status@agent-status
 ```
 
 Start Codex in any repository, open `/hooks`, and trust the agent-status hooks. Then watch from another terminal:
@@ -87,9 +87,9 @@ First prompt starts a detached sidecar. Sidecar emits 20-second heartbeats until
 Upgrade or remove the plugin:
 
 ```bash
-codex plugin marketplace upgrade astatus
-codex plugin remove agent-status@astatus
-codex plugin marketplace remove astatus
+codex plugin marketplace upgrade agent-status
+codex plugin remove agent-status@agent-status
+codex plugin marketplace remove agent-status
 ```
 
 ### Claude Code integration
@@ -98,8 +98,8 @@ Requires Python 3.10+ and Claude Code on Linux or macOS. Install marketplace plu
 
 ```bash
 pip install agent-status
-claude plugin marketplace add julsemaan/astatus
-claude plugin install agent-status@astatus
+claude plugin marketplace add julsemaan/agent-status
+claude plugin install agent-status@agent-status
 ```
 
 Plugin adds hooks only: no model tools or MCP server. Hooks map prompts and ordinary tools to `working`, `AskUserQuestion`, `ExitPlanMode`, permission dialogs, and trailing assistant questions to `input-required`, active background work at turn end to `submitted`, and ordinary turn completion to task removal (reader-derived idle). Sidecar emits 20-second heartbeats and removes snapshot on session exit.

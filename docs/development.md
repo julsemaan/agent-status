@@ -26,7 +26,7 @@ The Pi package is exported by the repository root `package.json`. Do not install
 Pi persists installed packages in `~/.pi/agent/settings.json` and loads them again on startup. Before developing the extension locally, remove this entry from the `packages` array:
 
 ```json
-"https://github.com/julsemaan/astatus@main"
+"https://github.com/julsemaan/agent-status@main"
 ```
 
 Do not only delete the cached Git checkout: leaving the entry in `settings.json` causes Pi to load or install the GitHub version again after a restart. Keep the local checkout entry that `pi install .` adds.
@@ -43,7 +43,7 @@ Then reload Pi so the local extension starts:
 /reload
 ```
 
-Before restarting Pi, verify `~/.pi/agent/settings.json` contains the local checkout in `packages` and no `https://github.com/julsemaan/astatus@main` entry. If `.pi/settings.json` exists in the repository, remove the same GitHub source there too because project settings can also install packages on startup.
+Before restarting Pi, verify `~/.pi/agent/settings.json` contains the local checkout in `packages` and no `https://github.com/julsemaan/agent-status@main` entry. If `.pi/settings.json` exists in the repository, remove the same GitHub source there too because project settings can also install packages on startup.
 
 For a one-shot extension test without installing it:
 
@@ -58,7 +58,7 @@ Load repository package by absolute local path in project or global OpenCode con
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["file:///home/you/src/astatus"]
+  "plugin": ["file:///home/you/src/agent-status"]
 }
 ```
 
@@ -79,15 +79,15 @@ Codex CLI with plugin support on Linux/macOS installs the repository as a local 
 
 ```bash
 codex plugin marketplace add .
-codex plugin add agent-status@astatus
+codex plugin add agent-status@agent-status
 ```
 
 After changing the plugin, bump its version and refresh the installed cache:
 
 ```bash
-codex plugin marketplace upgrade astatus
-codex plugin remove agent-status@astatus
-codex plugin add agent-status@astatus
+codex plugin marketplace upgrade agent-status
+codex plugin remove agent-status@agent-status
+codex plugin add agent-status@agent-status
 ```
 
 Start a new Codex session, open `/hooks`, and trust the agent-status hooks. Hook definition changes require trust again. First prompt triggers `SessionStart` and a detached 20-second heartbeat sidecar.
@@ -138,8 +138,8 @@ python -m build
 Smoke-test the wheel in a fresh environment:
 
 ```bash
-python -m venv /tmp/astatus-smoke
-. /tmp/astatus-smoke/bin/activate
+python -m venv /tmp/agent-status-smoke
+. /tmp/agent-status-smoke/bin/activate
 pip install dist/*.whl
 agent-status --help
 ```
@@ -193,9 +193,9 @@ Repository setup required before the first release:
 
 - Add a `v*` tag ruleset restricted to release maintainers; block tag updates and deletion.
 - Confirm the `pypi` environment exists. Optionally require approval before publication.
-- Configure the PyPI Trusted Publisher for repository `julsemaan/astatus`, workflow `.github/workflows/publish.yml`, and environment `pypi`.
+- Configure the PyPI Trusted Publisher for repository `julsemaan/agent-status`, workflow `.github/workflows/publish.yml`, and environment `pypi`.
 - Bootstrap npm once from exact tagged commit with `npm login` then `npm publish ./opencode-plugin --access public`; never store npm credentials in repository.
-- Configure npm Trusted Publisher for owner `julsemaan`, repository `astatus`, workflow `publish.yml`, environment `npm`, and `npm publish` permission.
+- Configure npm Trusted Publisher for owner `julsemaan`, repository `agent-status`, workflow `publish.yml`, environment `npm`, and `npm publish` permission.
 - Configure npm package publishing access to require 2FA and disallow tokens.
 - Do not store PyPI or npm credentials in repository secrets.
 

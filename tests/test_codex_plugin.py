@@ -40,7 +40,7 @@ class CodexPluginTests(unittest.TestCase):
         self.assertEqual(manifest["version"], package["version"])
         self.assertIn(f'version = "{manifest["version"]}"', pyproject)
         plugin = marketplace["plugins"][0]
-        self.assertEqual(marketplace["name"], "astatus")
+        self.assertEqual(marketplace["name"], "agent-status")
         self.assertEqual(plugin["name"], manifest["name"])
         self.assertEqual((marketplace_path.parents[2] / plugin["source"]["path"]).resolve(), ROOT)
         self.assertEqual(plugin["policy"], {

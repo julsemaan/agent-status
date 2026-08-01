@@ -63,7 +63,7 @@ function restoreEnv(name, value) {
 }
 
 test("composite: first prompt sets goal and active task", async () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "astatus-comp-"));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "agent-status-comp-"));
   const prev = process.env.AGENT_STATUS_DIR;
   process.env.AGENT_STATUS_DIR = tmp;
 
@@ -89,7 +89,7 @@ test("composite: first prompt sets goal and active task", async () => {
 });
 
 test("composite: second prompt updates task but keeps goal", async () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "astatus-comp-"));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "agent-status-comp-"));
   const prev = process.env.AGENT_STATUS_DIR;
   process.env.AGENT_STATUS_DIR = tmp;
 
@@ -115,7 +115,7 @@ test("composite: second prompt updates task but keeps goal", async () => {
 });
 
 test("composite: agent_end clears task and keeps goal", async () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "astatus-comp-"));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "agent-status-comp-"));
   const prev = process.env.AGENT_STATUS_DIR;
   process.env.AGENT_STATUS_DIR = tmp;
 
@@ -139,7 +139,7 @@ test("composite: agent_end clears task and keeps goal", async () => {
 });
 
 test("composite: idle heartbeat keeps goal without task", async () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "astatus-comp-"));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "agent-status-comp-"));
   const prev = process.env.AGENT_STATUS_DIR;
   process.env.AGENT_STATUS_DIR = tmp;
 
@@ -165,7 +165,7 @@ test("composite: idle heartbeat keeps goal without task", async () => {
 });
 
 test("composite: bridge submitted still works for real queued work", async () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "astatus-comp-"));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "agent-status-comp-"));
   const prev = process.env.AGENT_STATUS_DIR;
   process.env.AGENT_STATUS_DIR = tmp;
 
@@ -200,7 +200,7 @@ test("composite: bridge submitted still works for real queued work", async () =>
 });
 
 test("composite: valid tmux environment overrides bridge keys and preserves bridge metadata", async () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "astatus-comp-"));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "agent-status-comp-"));
   const previous = {
     statusDir: process.env.AGENT_STATUS_DIR,
     tmux: process.env.TMUX,
@@ -235,7 +235,7 @@ test("composite: valid tmux environment overrides bridge keys and preserves brid
 });
 
 test("composite: invalid tmux environment strips bridge tmux keys", async () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "astatus-comp-"));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "agent-status-comp-"));
   const previous = { statusDir: process.env.AGENT_STATUS_DIR, tmux: process.env.TMUX, pane: process.env.TMUX_PANE };
   process.env.AGENT_STATUS_DIR = tmp;
   process.env.TMUX = "/tmp/default,1234,7";
@@ -260,7 +260,7 @@ test("composite: invalid tmux environment strips bridge tmux keys", async () => 
 });
 
 test("composite: outside tmux emits no tmux metadata", async () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "astatus-comp-"));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "agent-status-comp-"));
   const previous = { statusDir: process.env.AGENT_STATUS_DIR, tmux: process.env.TMUX, pane: process.env.TMUX_PANE };
   process.env.AGENT_STATUS_DIR = tmp;
   delete process.env.TMUX;
@@ -282,7 +282,7 @@ test("composite: outside tmux emits no tmux metadata", async () => {
 });
 
 test("composite: stale async older prompt cannot overwrite newer task", async () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "astatus-comp-"));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "agent-status-comp-"));
   const prev = process.env.AGENT_STATUS_DIR;
   process.env.AGENT_STATUS_DIR = tmp;
 
@@ -323,7 +323,7 @@ test("composite: stale async older prompt cannot overwrite newer task", async ()
 });
 
 test("composite: bridge task overrides prompt task", async () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "astatus-comp-"));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "agent-status-comp-"));
   const prev = process.env.AGENT_STATUS_DIR;
   process.env.AGENT_STATUS_DIR = tmp;
 
@@ -359,7 +359,7 @@ test("composite: bridge task overrides prompt task", async () => {
 });
 
 test("composite: question blocked survives agent_end via bridge", async () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "astatus-comp-"));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "agent-status-comp-"));
   const prev = process.env.AGENT_STATUS_DIR;
   process.env.AGENT_STATUS_DIR = tmp;
 
@@ -395,7 +395,7 @@ test("composite: question blocked survives agent_end via bridge", async () => {
 });
 
 test("composite: session_start resets goal and task", async () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "astatus-comp-"));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "agent-status-comp-"));
   const prev = process.env.AGENT_STATUS_DIR;
   process.env.AGENT_STATUS_DIR = tmp;
 
@@ -427,7 +427,7 @@ test("composite: session_start resets goal and task", async () => {
 });
 
 test("composite: shutdown removes file even with goal and bridge data", async () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "astatus-comp-"));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "agent-status-comp-"));
   const prev = process.env.AGENT_STATUS_DIR;
   process.env.AGENT_STATUS_DIR = tmp;
 
@@ -456,7 +456,7 @@ test("composite: shutdown removes file even with goal and bridge data", async ()
 });
 
 test("composite: resume restores goal from custom entries", async () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "astatus-comp-"));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "agent-status-comp-"));
   const prev = process.env.AGENT_STATUS_DIR;
   process.env.AGENT_STATUS_DIR = tmp;
 

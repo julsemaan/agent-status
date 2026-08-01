@@ -1,6 +1,6 @@
 # agent-status OpenCode plugin
 
-Dependency-free OpenCode plugin that writes local [agent-status](https://github.com/julsemaan/astatus) snapshots.
+Dependency-free OpenCode plugin that writes local [agent-status](https://github.com/julsemaan/agent-status) snapshots.
 
 ## Install
 

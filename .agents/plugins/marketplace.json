@@ -1,7 +1,7 @@
 {
-  "name": "astatus",
+  "name": "agent-status",
   "interface": {
-    "displayName": "astatus"
+    "displayName": "agent-status"
   },
   "plugins": [
     {

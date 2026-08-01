@@ -3,11 +3,11 @@
   "version": "0.1.26",
   "description": "Publish Claude Code session state for local agent-status monitoring.",
   "author": {
-    "name": "astatus contributors",
+    "name": "agent-status contributors",
     "url": "https://github.com/julsemaan"
   },
-  "homepage": "https://github.com/julsemaan/astatus#readme",
-  "repository": "https://github.com/julsemaan/astatus",
+  "homepage": "https://github.com/julsemaan/agent-status#readme",
+  "repository": "https://github.com/julsemaan/agent-status",
   "license": "Apache-2.0",
   "keywords": [
     "agent-status",

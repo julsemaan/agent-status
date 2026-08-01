@@ -19,7 +19,7 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/julsemaan/astatus.git",
+    "url": "git+https://github.com/julsemaan/agent-status.git",
     "directory": "opencode-plugin"
   },
   "publishConfig": {

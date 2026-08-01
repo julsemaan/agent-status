@@ -39,7 +39,7 @@ class ClaudeCodePluginTests(unittest.TestCase):
         self.assertEqual(manifest["name"], "agent-status")
         self.assertEqual(manifest["version"], package["version"])
         self.assertEqual(manifest["version"], codex["version"])
-        self.assertEqual(marketplace["name"], "astatus")
+        self.assertEqual(marketplace["name"], "agent-status")
         self.assertEqual(marketplace["plugins"][0]["source"], "./")
         self.assertNotIn("mcpServers", manifest)
         self.assertNotIn("commands", manifest)
