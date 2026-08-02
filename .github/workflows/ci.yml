@@ -39,6 +39,8 @@ jobs:
               package_lock = json.load(file)
           with open("opencode-plugin/package.json") as file:
               opencode_plugin = json.load(file)
+          with open("pi-extension/package.json") as file:
+              pi_extension = json.load(file)
           with open(".codex-plugin/plugin.json") as file:
               codex_plugin = json.load(file)
           with open(".claude-plugin/plugin.json") as file:
@@ -52,6 +54,7 @@ jobs:
               "package-lock.json": package_lock["version"],
               "package-lock.json root package": package_lock["packages"][""]["version"],
               "opencode-plugin/package.json": opencode_plugin["version"],
+              "pi-extension/package.json": pi_extension["version"],
               ".codex-plugin/plugin.json": codex_plugin["version"],
               ".claude-plugin/plugin.json": claude_plugin["version"],
               ".claude-plugin/marketplace.json": marketplace["plugins"][0]["version"],
@@ -70,10 +73,13 @@ jobs:
           npm ci
           npm test
 
-      - name: Validate npm package
+      - name: Validate npm packages
         run: |
           npm --prefix opencode-plugin test
           npm pack ./opencode-plugin --dry-run --json
+          npm --prefix pi-extension test
+          npm pack ./pi-extension --dry-run --json > /tmp/agent-status-pi-pack.json
+          python3 -c 'import json; from pathlib import Path; expected = {"index.js", "package.json", "README.md", "LICENSE"}; actual = {entry["path"] for entry in json.loads(Path("/tmp/agent-status-pi-pack.json").read_text())[0]["files"]}; assert actual == expected, f"Unexpected Pi package files: {sorted(actual)}"; print("Pi package files match")'
 
       - name: Build package
         run: |

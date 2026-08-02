@@ -67,6 +67,8 @@ jobs:
               package_lock = json.load(file)
           with open("opencode-plugin/package.json") as file:
               opencode_plugin = json.load(file)
+          with open("pi-extension/package.json") as file:
+              pi_extension = json.load(file)
           with open(".codex-plugin/plugin.json") as file:
               plugin = json.load(file)
 
@@ -77,6 +79,7 @@ jobs:
               "package-lock.json": package_lock["version"],
               "package-lock.json root package": package_lock["packages"][""]["version"],
               "opencode-plugin/package.json": opencode_plugin["version"],
+              "pi-extension/package.json": pi_extension["version"],
               ".codex-plugin/plugin.json": plugin["version"],
           }
           mismatches = {name: version for name, version in versions.items() if version != expected}
@@ -94,10 +97,13 @@ jobs:
       - name: Run JavaScript tests
         run: npm test
 
-      - name: Validate npm package
+      - name: Validate npm packages
         run: |
           npm --prefix opencode-plugin test
           npm pack ./opencode-plugin --dry-run --json
+          npm --prefix pi-extension test
+          npm pack ./pi-extension --dry-run --json > /tmp/agent-status-pi-pack.json
+          python3 -c 'import json; from pathlib import Path; expected = {"index.js", "package.json", "README.md", "LICENSE"}; actual = {entry["path"] for entry in json.loads(Path("/tmp/agent-status-pi-pack.json").read_text())[0]["files"]}; assert actual == expected, f"Unexpected Pi package files: {sorted(actual)}"; print("Pi package files match")'
 
       - name: Build and check package
         run: |
@@ -156,8 +162,38 @@ jobs:
       - name: Publish to npm
         run: npm publish
 
+  publish-npm-pi:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: npm
+      url: https://www.npmjs.com/package/agent-status-pi
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: pi-extension
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          registry-url: https://registry.npmjs.org
+
+      - name: Install trusted publishing npm version
+        run: npm install --global npm@11.5.1
+
+      - name: Install test dependencies
+        working-directory: .
+        run: npm ci
+
+      - name: Publish to npm
+        run: npm publish
+
   publish-github:
-    needs: [publish-pypi, publish-npm]
+    needs: [publish-pypi, publish-npm, publish-npm-pi]
     runs-on: ubuntu-latest
     permissions:
       contents: write
