@@ -35,7 +35,13 @@ pip install agent-status
 
 ### Pi extension install
 
-Install from git:
+Preferred npm package:
+
+```bash
+pi install npm:agent-status-pi
+```
+
+Git alternative:
 
 ```bash
 pi install git:github.com/julsemaan/agent-status

@@ -21,7 +21,13 @@ Devbox uses the same `.venv` path through `VENV_DIR=.venv`.
 
 ## Use the local Pi extension
 
-The Pi package is exported by the repository root `package.json`. Do not install `./pi-extension` directly; that directory is the development test harness.
+The Pi package is exported by the repository root `package.json`. The published package is `agent-status-pi`:
+
+```bash
+pi install npm:agent-status-pi
+```
+
+For local development, install the repository root rather than `./pi-extension` so Pi loads the same manifest used by Git installs.
 
 Pi persists installed packages in `~/.pi/agent/settings.json` and loads them again on startup. Before developing the extension locally, remove this entry from the `packages` array:
 
@@ -64,14 +70,16 @@ Load repository package by absolute local path in project or global OpenCode con
 
 Run `opencode` in a test workspace and `agent-status watch` in another terminal. Smoke-test session creation, prompt work, question/permission blocking, idle goal retention, resume goal restoration, and snapshot cleanup on exit.
 
-Validate npm package from repository root:
+Validate npm packages from repository root:
 
 ```bash
 npm --prefix opencode-plugin test
 npm pack ./opencode-plugin --dry-run --json
+npm --prefix pi-extension test
+npm pack ./pi-extension --dry-run --json
 ```
 
-Dry-run output must contain only `index.js`, `package.json`, `README.md`, and `LICENSE`.
+Each dry-run output must contain only `index.js`, `package.json`, `README.md`, and `LICENSE`.
 
 ## Develop Codex CLI integration
 
@@ -122,7 +130,9 @@ python3 -m unittest
 npm ci
 npm test
 npm --prefix opencode-plugin test
-npm pack ./opencode-plugin --dry-run
+npm pack ./opencode-plugin --dry-run --json
+npm --prefix pi-extension test
+npm pack ./pi-extension --dry-run --json
 claude plugin validate .
 ```
 
@@ -159,7 +169,9 @@ python3 -m unittest
 npm ci
 npm test
 npm --prefix opencode-plugin test
-npm pack ./opencode-plugin --dry-run
+npm pack ./opencode-plugin --dry-run --json
+npm --prefix pi-extension test
+npm pack ./pi-extension --dry-run --json
 python -m build
 twine check dist/*
 ```
@@ -167,7 +179,7 @@ twine check dist/*
 Commit the changed manifests on a branch and merge them through a pull request:
 
 ```bash
-git add pyproject.toml package.json package-lock.json opencode-plugin/package.json .codex-plugin/plugin.json .claude-plugin/plugin.json .claude-plugin/marketplace.json
+git add pyproject.toml package.json package-lock.json opencode-plugin/package.json pi-extension/package.json .codex-plugin/plugin.json .claude-plugin/plugin.json .claude-plugin/marketplace.json
 git commit -m "chore(release): bump version to X.Y.Z"
 ```
 
@@ -184,7 +196,8 @@ Verify the release:
 
 - Release workflow is green.
 - PyPI version is available.
-- npm package version and metadata are correct: `npm view agent-status-opencode version dist-tags repository`.
+- npm package versions and metadata are correct: `npm view agent-status-opencode version dist-tags repository` and `npm view agent-status-pi version dist-tags repository`.
+- Pi package loads: `pi -e npm:agent-status-pi`.
 - GitHub Release is published.
 - Wheel and source distribution are attached.
 - A fresh virtual environment can install the released wheel.
@@ -194,8 +207,9 @@ Repository setup required before the first release:
 - Add a `v*` tag ruleset restricted to release maintainers; block tag updates and deletion.
 - Confirm the `pypi` environment exists. Optionally require approval before publication.
 - Configure the PyPI Trusted Publisher for repository `julsemaan/agent-status`, workflow `.github/workflows/publish.yml`, and environment `pypi`.
-- Bootstrap npm once from exact tagged commit with `npm login` then `npm publish ./opencode-plugin --access public`; never store npm credentials in repository.
-- Configure npm Trusted Publisher for owner `julsemaan`, repository `agent-status`, workflow `publish.yml`, environment `npm`, and `npm publish` permission.
+- Bootstrap `agent-status-opencode` once from exact tagged commit with `npm login` then `npm publish ./opencode-plugin --access public`; never store npm credentials in repository.
+- Bootstrap `agent-status-pi` once for its initial version from the exact tagged commit with `npm login` then `npm publish ./pi-extension --access public`; do not rerun the release workflow for that same npm version. Later versions publish through `publish-npm-pi`; never store npm credentials in repository.
+- Configure npm Trusted Publisher separately for `agent-status-opencode` and `agent-status-pi`: owner `julsemaan`, repository `agent-status`, workflow filename `publish.yml`, environment `npm`, and `npm publish` permission.
 - Configure npm package publishing access to require 2FA and disallow tokens.
 - Do not store PyPI or npm credentials in repository secrets.
 

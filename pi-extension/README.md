@@ -1,27 +1,29 @@
-# pi-extension
+# agent-status Pi extension
 
-Pi extension package for `agent-status/v1alpha1`.
-
-Structure follows `ponytail` pattern:
-- repo root `package.json` exports pi resources
-- `pi-extension/index.js` holds extension entrypoint
-- `pi-extension/package.json` holds dev-local test script
+Pi package for `agent-status/v1alpha1`.
 
 ## Install
 
-From repo root:
+Preferred npm package:
 
 ```bash
-pi install /path/to/agent-status
-# or
+pi install npm:agent-status-pi
+```
+
+Git alternative:
+
+```bash
 pi install git:github.com/julsemaan/agent-status
 ```
 
-Do not install `./pi-extension` path itself. That directory is dev-local test harness, not package root.
-After install in running pi session, run `/reload` or restart pi.
+For local development from a checkout, install the repository root:
 
-Pi loads `./pi-extension/index.js` via root `package.json` `pi.extensions` manifest.
+```bash
+pi install /path/to/agent-status
+```
 
-Current extension supports durable `goal` persistence plus optional bridge override via `agent-status:profile`. Bridge producer not shipped in this repo.
+After install in a running pi session, run `/reload` or restart pi.
 
-When pi starts inside tmux, the extension automatically emits paired `x_meta.tmux_socket` and `x_meta.tmux_pane` values from `TMUX` and `TMUX_PANE`. Missing or malformed values omit both fields. After installing or upgrading the extension, run `/reload` or restart pi so the new emitter code loads.
+The extension supports durable `goal` persistence plus optional bridge override via `agent-status:profile`. Bridge producer is not shipped in this repo.
+
+When pi starts inside tmux, the extension automatically emits paired `x_meta.tmux_socket` and `x_meta.tmux_pane` values from `TMUX` and `TMUX_PANE`. Missing or malformed values omit both fields. After installing or upgrading the extension, run `/reload` or restart pi so new emitter code loads.

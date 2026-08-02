@@ -1,8 +1,41 @@
 {
-  "name": "agent-status-pi-extension-dev",
-  "private": true,
+  "name": "agent-status-pi",
+  "version": "0.1.28",
+  "description": "Pi extension for local agent status snapshots",
   "type": "module",
+  "main": "index.js",
+  "files": [
+    "index.js"
+  ],
   "scripts": {
-    "test": "node --test ./test/*.test.js"
+    "test": "node --test ./test/*.test.js",
+    "prepublishOnly": "npm test"
+  },
+  "keywords": [
+    "pi-package",
+    "pi",
+    "extension",
+    "agent-status"
+  ],
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/julsemaan/agent-status.git",
+    "directory": "pi-extension"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "^0.79.9"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-ai": "^0.79.9"
+  },
+  "pi": {
+    "extensions": [
+      "./index.js"
+    ]
   }
 }
