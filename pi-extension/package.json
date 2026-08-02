@@ -1,6 +1,6 @@
 {
   "name": "agent-status-pi",
-  "version": "0.1.28",
+  "version": "0.1.29",
   "description": "Pi extension for local agent status snapshots",
   "type": "module",
   "main": "index.js",
