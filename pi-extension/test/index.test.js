@@ -307,7 +307,7 @@ test("extension session_start switches session ownership and clears goal and tas
 
     await handlers.get("session_start")?.({ reason: "startup" }, firstCtx);
     await handlers.get("before_agent_start")?.({ prompt: "First session goal" }, firstCtx);
-    await handlers.get("agent_end")?.({}, firstCtx);
+    await handlers.get("agent_settled")?.({}, firstCtx);
 
     let files = fs.readdirSync(tmp);
     assert.equal(files.length, 1);
@@ -332,7 +332,7 @@ test("extension session_start switches session ownership and clears goal and tas
   }
 });
 
-test("extension agent_end clears task but keeps goal", async () => {
+test("extension agent_settled clears task but keeps goal", async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "agent-status-ext-"));
   const previous = process.env.AGENT_STATUS_DIR;
   process.env.AGENT_STATUS_DIR = tmp;
@@ -353,7 +353,7 @@ test("extension agent_end clears task but keeps goal", async () => {
 
     await handlers.get("session_start")?.({ reason: "startup" }, ctx);
     await handlers.get("before_agent_start")?.({ prompt: "Persist session intent" }, ctx);
-    await handlers.get("agent_end")?.({}, ctx);
+    await handlers.get("agent_settled")?.({}, ctx);
 
     const files = fs.readdirSync(tmp);
     const record = JSON.parse(fs.readFileSync(path.join(tmp, files[0]), "utf8"));

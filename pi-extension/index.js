@@ -331,7 +331,7 @@ export default function agentStatusPiExtension(pi) {
     touch({ last_activity_at: nowUtc() });
   });
 
-  pi.on("agent_end", async () => {
+  pi.on("agent_settled", async () => {
     if (!enabled) return;
     setCoreTask(undefined);
     current = updateRuntime(current);

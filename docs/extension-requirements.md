@@ -8,6 +8,8 @@ Reference implementations: `pi-extension/index.js` (pi), `opencode-plugin/index.
 
 Pi-specific behavior: processes with `PI_SUBAGENT=1` are excluded before extension handlers register, so child/subagent processes emit no snapshot. Parent and ordinary `--no-session` Pi processes remain enabled.
 
+Pi-specific lifecycle behavior: `before_agent_start` sets the prompt-derived task to `working`. `agent_end` may precede WebSocket retries, compaction retries, or queued continuations. `agent_settled` is Pi's idle transition, so the Pi extension clears its core task there. Bridge-derived states such as `input-required` and `submitted` remain unchanged.
+
 OpenCode mapping: plugin initialization creates process-scoped idle snapshot without session metadata; `session.created` attaches session ID to same snapshot; `chat.message`, busy/retry status, and tool hooks set `working`; question-tool and permission events set/resume `input-required`; open todos become `submitted` while idle; errors set transient `failed`; `session.idle` clears active task; `session.deleted` detaches session ownership while keeping process snapshot, and plugin `dispose` removes snapshot. Goal restores asynchronously from first real user message through `client.session.messages()`.
 
 OpenCode limit: sessions with `parentID` are excluded, so child/subagent sessions emit no snapshot.
@@ -107,7 +109,7 @@ Rules:
 - `task.state` MUST NOT be `idle`. Idle is a reader-derived state.
 - When no task is active, the `task` key SHOULD be absent (not null, not empty object).
 - A reader derives `idle` from `runtime.lifecycle=running` + missing `task`.
-- Retained session purpose MUST NOT be encoded by keeping `task.state = "submitted"` after `agent_end`.
+- Retained session purpose MUST NOT be encoded by keeping `task.state = "submitted"` after the host's idle transition. For Pi, that transition is `agent_settled`.
 
 ### 3.5 Schema Version
 
@@ -198,7 +200,8 @@ the semantics are universal.
 |---|---|---|
 | `session_start` | Session begins (startup, new, resume, fork) | Ensure stable unique `agent_id` exists for this extension instance, create initial snapshot with `lifecycle=running`, start heartbeat |
 | `before_agent_start` | User prompt submitted, before agent loop | Set task from prompt summary (cheap fallback) |
-| `agent_end` | Agent loop finished for current prompt | Clear core task, update `updated_at` |
+| `agent_end` | Agent loop attempt finished for current prompt | Apply host-specific end-of-attempt handling |
+| `agent_settled` (Pi) | Pi has no retry or queued continuation pending | Clear core task, update `updated_at` |
 | `session_shutdown` | Session ending (quit, reload, new, fork) | Stop heartbeat, remove snapshot file OR persist `lifecycle=stopped` |
 | `tool_execution_start` | Tool begins executing | Update `runtime.last_activity_at` |
 | `tool_execution_end` | Tool finishes executing | Update `runtime.last_activity_at` |
@@ -219,8 +222,8 @@ the semantics are universal.
 - `session_shutdown` handlers MUST clean up: stop timers, release session
   ownership, remove the status file.
 - `before_agent_start` handlers MUST seed `task` from prompt summary and SHOULD seed `goal` from first prompt in session.
-- `agent_end` handlers MUST clear the core task (task derived from prompt).
-  Bridge-derived tasks MAY survive `agent_end`.
+- The host's idle transition MUST clear the core task derived from the prompt. For Pi, use `agent_settled`, not `agent_end`.
+- Bridge-derived tasks MAY survive `agent_end` and the host's idle transition.
 
 ## 7. State Catalog
 
@@ -287,7 +290,7 @@ or `runtime.lifecycle`. These are reader-computed values.
               │       ▼                          │
               │    working ──────┐               │
               │       │         │               │
-              │       │    agent_end             │
+              │       │  agent_settled (Pi)      │
               │       │         │               │
               │       ▼         ▼               │
               │   (no task) ◄────┘    session_shutdown
@@ -303,7 +306,7 @@ or `runtime.lifecycle`. These are reader-computed values.
     working ──[error]──────────► failed
     working ──[user cancel]────► canceled
     working ──[safety gate]────► rejected
-    working ──[done]───────────► completed ──► agent_end
+    working ──[done]───────────► completed ──► idle transition
 ```
 
 ### 7.5 State Accuracy Requirements
@@ -315,12 +318,12 @@ Specifically:
   `input-required`, not `working`.
 - When the agent has finished processing and is idle, the `task` key MUST be
   absent (derived `idle`), not `completed` and not synthetic `submitted`.
-  `completed` is transient and should be cleared at `agent_end`.
+  `completed` is transient and should be cleared at the host's idle transition. For Pi, use `agent_settled`.
 - When the agent is executing tools (file writes, shell commands, API calls),
   `task.state` MUST be `working`.
 - The emitter MUST NOT hold `completed` or `failed` beyond the current agent
   turn. These are transient: they should be set during the turn and cleared
-  at `agent_end`.
+  at the host's idle transition. For Pi, use `agent_settled`.
 
 ## 8. Harness Event Mapping
 
@@ -337,7 +340,7 @@ author MUST map their target harness's events to these abstract states.
 | `input-required` | Waiting for user input | optional bridge event such as `agent-status:profile` | Permission prompt shown | Permission prompt shown
 | `auth-required` | Auth/OAuth flow triggered | host-specific integration needed | OAuth redirect | OAuth redirect
 | `submitted` | Real pending work while idle | optional bridge event such as `agent-status:profile` | Queued task signal | Queued task signal
-| (no task) | Agent idle, turn ended | `agent_end` | Idle state | Idle state
+| (no task) | Agent idle, turn ended | `agent_settled` | Idle state | Idle state
 | `stopped` | Session shutting down | `session_shutdown` | Session teardown | Session teardown
 
 ### 8.2 Detecting `input-required`
@@ -377,8 +380,8 @@ resumes, the emitter SHOULD transition back to `working`.
 The pi extension uses optional bridge event `agent-status:profile` from
 profile-side integration code outside this repo. That bridge can set
 `task.state = "input-required"` with summary like `"Waiting for user input"`.
-This survives `agent_end` because agent is genuinely waiting — it has not
-finished turn.
+This survives `agent_end` and `agent_settled` because the bridge still reports
+that the agent is waiting. The agent has not finished its work.
 
 ### 8.3 Detecting `working` vs `idle`
 
@@ -392,7 +395,7 @@ finished turn.
 
 The emitter MUST NOT report `working` when the agent is idle. The most
 common bug: setting `working` at `before_agent_start` and forgetting to
-clear it at `agent_end`.
+clear it at the host's idle transition. For Pi, use `agent_settled`.
 
 ### 8.4 Detecting `submitted`
 
@@ -425,17 +428,18 @@ Some states must survive across agent turns within a session:
 
 | State | Persists across turns? | Reason |
 |---|---|---|
-| `working` | No | Transient — set per prompt, cleared at `agent_end` |
+| `working` | No | Transient, set per prompt and cleared at the host's idle transition |
 | `input-required` | Yes | Agent may be waiting across turns (question blocked) |
 | `submitted` | Yes | Real pending work persists |
-| `completed` | No | Transient — cleared at `agent_end` |
-| `failed` | No | Transient — cleared at `agent_end` |
+| `completed` | No | Transient, cleared at the host's idle transition |
+| `failed` | No | Transient, cleared at the host's idle transition |
 | `goal` | Yes | Session intent may outlive active turns |
 
 Reference pattern: separate `goal` (first-prompt durable intent), `coreTask`
-(prompt-derived current turn, cleared at `agent_end`), and `bridgeData`
-(external integration data, persists until replaced). Bridge task state may
-survive `agent_end`; core task does not.
+(prompt-derived current turn, cleared at the host's idle transition, which is
+`agent_settled` in Pi), and `bridgeData` (external integration data, persists
+until replaced). Bridge task state may survive `agent_end`; core task does not
+survive settlement.
 
 ### 8.7 State Transition Rules
 
@@ -445,7 +449,7 @@ The emitter MUST follow these transition rules:
 2. **`before_agent_start` → `working`**: Set task from prompt summary.
 3. **Tool call (question/confirm) → `input-required`**: Override task state.
 4. **Tool result (user answered) → `working`**: Resume previous state.
-5. **`agent_end` → no task**: Clear core task. Bridge task may survive.
+5. **Host idle transition → no task**: Clear core task. For Pi, `agent_end` may be followed by a retry or queued continuation, so use `agent_settled`. Bridge task may survive.
 6. **`session_shutdown` → `stopped` or removed**: Final state.
 
 Illegal transitions (emitter MUST NOT produce):
@@ -487,7 +491,8 @@ The emitter may receive task state from multiple sources:
 1. **Goal (first-prompt derived)**: Set from first prompt in session.
    Persists across idle turns until session reset.
 2. **Core (prompt-derived)**: Set from current user's prompt text at
-   `before_agent_start`. Cleared at `agent_end`.
+   `before_agent_start`. Cleared at the host's idle transition, `agent_settled`
+   in Pi.
 3. **Bridge (external)**: Override from an external data source (profile
    sidecar, status bridge). May persist across agent turns.
 
@@ -601,7 +606,7 @@ The emitter SHOULD include tests covering:
 8. **Session deduplication**: Duplicate `session_start` events don't create extra files.
 9. **Shutdown cleanup**: File removed, heartbeat stopped, ownership released.
 10. **Bridge composition**: Bridge overrides core task; absent bridge falls back.
-11. **Agent end behavior**: Core task cleared; bridge task survives.
+11. **Agent end and settlement behavior**: Core task clears at the host's idle transition; bridge task survives `agent_end` and settlement.
 12. **Tmux metadata**: Valid environment pair overrides bridge tmux keys; missing or malformed pair omits both keys while preserving unrelated bridge metadata.
 
 ### 13.3 Test Framework

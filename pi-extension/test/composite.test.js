@@ -88,6 +88,37 @@ test("composite: first prompt sets goal and active task", async () => {
   }
 });
 
+test("composite: agent_end leaves task until agent_settled", async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "agent-status-comp-"));
+  const prev = process.env.AGENT_STATUS_DIR;
+  process.env.AGENT_STATUS_DIR = tmp;
+
+  const { pi, lifecycleHandlers } = createMockPi();
+  try {
+    agentStatusPiExtension(pi);
+    const ctx = testCtx("agent-settled");
+
+    await lifecycleHandlers.get("session_start")?.({ reason: "startup" }, ctx);
+    await lifecycleHandlers.get("before_agent_start")?.({ prompt: "Retry safely" }, ctx);
+
+    let record = readStatusFile(tmp);
+    assert.equal(record.task.state, "working");
+
+    await lifecycleHandlers.get("agent_end")?.({}, ctx);
+    record = readStatusFile(tmp);
+    assert.equal(record.task.state, "working");
+
+    await lifecycleHandlers.get("agent_settled")?.({}, ctx);
+    record = readStatusFile(tmp);
+    assert.equal(record.goal.summary, "Retry safely");
+    assert.equal("task" in record, false);
+  } finally {
+    if (prev === undefined) delete process.env.AGENT_STATUS_DIR;
+    else process.env.AGENT_STATUS_DIR = prev;
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test("composite: second prompt updates task but keeps goal", async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "agent-status-comp-"));
   const prev = process.env.AGENT_STATUS_DIR;
@@ -100,7 +131,7 @@ test("composite: second prompt updates task but keeps goal", async () => {
 
     await lifecycleHandlers.get("session_start")?.({ reason: "startup" }, ctx);
     await lifecycleHandlers.get("before_agent_start")?.({ prompt: "First prompt becomes goal" }, ctx);
-    await lifecycleHandlers.get("agent_end")?.({}, ctx);
+    await lifecycleHandlers.get("agent_settled")?.({}, ctx);
     await lifecycleHandlers.get("before_agent_start")?.({ prompt: "Second prompt becomes task" }, ctx);
 
     const record = readStatusFile(tmp);
@@ -114,7 +145,7 @@ test("composite: second prompt updates task but keeps goal", async () => {
   }
 });
 
-test("composite: agent_end clears task and keeps goal", async () => {
+test("composite: agent_settled clears task and keeps goal", async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "agent-status-comp-"));
   const prev = process.env.AGENT_STATUS_DIR;
   process.env.AGENT_STATUS_DIR = tmp;
@@ -126,7 +157,7 @@ test("composite: agent_end clears task and keeps goal", async () => {
 
     await lifecycleHandlers.get("session_start")?.({ reason: "startup" }, ctx);
     await lifecycleHandlers.get("before_agent_start")?.({ prompt: "Keep goal only" }, ctx);
-    await lifecycleHandlers.get("agent_end")?.({}, ctx);
+    await lifecycleHandlers.get("agent_settled")?.({}, ctx);
 
     const record = readStatusFile(tmp);
     assert.equal(record.goal.summary, "Keep goal only");
@@ -150,7 +181,7 @@ test("composite: idle heartbeat keeps goal without task", async () => {
 
     await lifecycleHandlers.get("session_start")?.({ reason: "startup" }, ctx);
     await lifecycleHandlers.get("before_agent_start")?.({ prompt: "Persist goal through idle" }, ctx);
-    await lifecycleHandlers.get("agent_end")?.({}, ctx);
+    await lifecycleHandlers.get("agent_settled")?.({}, ctx);
     await lifecycleHandlers.get("tool_execution_start")?.({}, ctx);
     await lifecycleHandlers.get("tool_execution_end")?.({}, ctx);
 
@@ -407,7 +438,7 @@ test("composite: session_start resets goal and task", async () => {
 
     await lifecycleHandlers.get("session_start")?.({ reason: "startup" }, firstCtx);
     await lifecycleHandlers.get("before_agent_start")?.({ prompt: "Old session goal" }, firstCtx);
-    await lifecycleHandlers.get("agent_end")?.({}, firstCtx);
+    await lifecycleHandlers.get("agent_settled")?.({}, firstCtx);
 
     let record = readStatusFile(tmp);
     assert.equal(record.goal.summary, "Old session goal");
@@ -437,7 +468,7 @@ test("composite: shutdown removes file even with goal and bridge data", async ()
     const ctx = testCtx("shutdown");
     await lifecycleHandlers.get("session_start")?.({ reason: "startup" }, ctx);
     await lifecycleHandlers.get("before_agent_start")?.({ prompt: "Goal before shutdown" }, ctx);
-    await lifecycleHandlers.get("agent_end")?.({}, ctx);
+    await lifecycleHandlers.get("agent_settled")?.({}, ctx);
 
     pi.events.emit("agent-status:profile", {
       task: { state: "submitted", summary: "pending" },
