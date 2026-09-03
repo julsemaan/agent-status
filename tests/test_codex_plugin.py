@@ -59,6 +59,17 @@ class CodexPluginTests(unittest.TestCase):
         self.assertEqual(hooks["hooks"]["SessionEnd"][0]["hooks"][0]["timeout"], 3)
         self.assertFalse((ROOT / ".codex" / "hooks.json").exists())
 
+    def test_codex_environment_takes_precedence_over_compatibility_aliases(self):
+        env = {
+            "PLUGIN_ROOT": "/tmp/codex-plugin",
+            "PLUGIN_DATA": "/tmp/codex-data",
+            "CLAUDE_PLUGIN_ROOT": "/tmp/claude-plugin",
+            "CLAUDE_PLUGIN_DATA": "/tmp/claude-data",
+        }
+        host = emitter.detect_host(env)
+        self.assertEqual(host, "codex")
+        self.assertEqual(emitter.plugin_data_dir(env, host), Path("/tmp/codex-data"))
+
     def test_hook_executes_outside_git_with_spaced_plugin_root(self):
         with tempfile.TemporaryDirectory() as tmp:
             base = Path(tmp)

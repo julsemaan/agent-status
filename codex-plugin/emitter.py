@@ -58,6 +58,8 @@ def is_subagent(event: dict[str, Any]) -> bool:
 
 
 def detect_host(env: dict[str, str] | os._Environ[str]) -> str:
+    if env.get("PLUGIN_ROOT") or env.get("PLUGIN_DATA"):
+        return "codex"
     return "claude-code" if env.get("CLAUDE_PLUGIN_ROOT") or env.get("CLAUDE_PLUGIN_DATA") else "codex"
 
 
