@@ -27,12 +27,6 @@
     "access": "public",
     "registry": "https://registry.npmjs.org/"
   },
-  "peerDependencies": {
-    "@earendil-works/pi-ai": "^0.79.9"
-  },
-  "devDependencies": {
-    "@earendil-works/pi-ai": "^0.79.9"
-  },
   "pi": {
     "extensions": [
       "./index.js"

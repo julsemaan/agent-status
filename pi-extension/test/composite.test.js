@@ -534,3 +534,44 @@ test("composite: resume restores goal from custom entries", async () => {
     fs.rmSync(tmp, { recursive: true, force: true });
   }
 });
+
+test("composite: llm summary routes through the session model registry", async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "agent-status-comp-"));
+  const prev = process.env.AGENT_STATUS_DIR;
+  process.env.AGENT_STATUS_DIR = tmp;
+
+  const { pi, lifecycleHandlers } = createMockPi();
+  const calls = [];
+  try {
+    agentStatusPiExtension(pi);
+    const ctx = testCtx("registry-summary", {
+      model: { provider: "claude-bridge", api: "claude-bridge", id: "claude-sonnet" },
+      sessionManager: {
+        getSessionFile: () => "/tmp/registry-summary.jsonl",
+        getSessionId: () => "session-1",
+      },
+      modelRegistry: {
+        complete: async (model, context, options) => {
+          calls.push({ model, context, options });
+          return { content: [{ type: "text", text: "Summarized by the model" }] };
+        },
+      },
+    });
+
+    await lifecycleHandlers.get("session_start")?.({ reason: "startup" }, ctx);
+    await lifecycleHandlers.get("before_agent_start")?.({ prompt: "Fix the scheduler" }, ctx);
+    await flushAsync();
+
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].options.cacheRetention, "none");
+    assert.equal(calls[0].options.sessionId, "session-1");
+
+    const record = readStatusFile(tmp);
+    assert.equal(record.goal.summary, "Summarized by the model");
+    assert.equal(record.task.summary, "Summarized by the model");
+  } finally {
+    if (prev === undefined) delete process.env.AGENT_STATUS_DIR;
+    else process.env.AGENT_STATUS_DIR = prev;
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});

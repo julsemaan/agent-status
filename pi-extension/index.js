@@ -2,7 +2,6 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { completeSimple } from "@earendil-works/pi-ai";
 
 export const SCHEMA_VERSION = "agent-status/v1alpha1";
 export const HEARTBEAT_INTERVAL_MS = 20_000;
@@ -132,10 +131,11 @@ function expandHome(value, homeDir) {
 async function llmSummarize(prompt, ctx) {
   if (!prompt || !ctx.model) return undefined;
   try {
-    const auth = await ctx.modelRegistry.getApiKeyAndHeaders(ctx.model);
-    if (!auth?.ok || !auth.apiKey) return undefined;
-
-    const response = await completeSimple(
+    // Provider-registered APIs (claude-bridge and other pi.registerProvider
+    // extensions) are invisible to pi-ai's compat dispatch, so the summary has
+    // to go through the session's model registry. cacheRetention:"none" marks it
+    // as a one-off so claude-bridge runs it isolated from the live session.
+    const response = await ctx.modelRegistry.complete(
       ctx.model,
       {
         messages: [{
@@ -144,7 +144,7 @@ async function llmSummarize(prompt, ctx) {
           timestamp: Date.now(),
         }],
       },
-      { apiKey: auth.apiKey, headers: auth.headers },
+      { cacheRetention: "none", sessionId: ctx.sessionManager?.getSessionId?.() },
     );
 
     const text = response.content
