@@ -12,79 +12,22 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: "22"
           cache: npm
 
-      - name: Assert versions match
-        shell: python
-        run: |
-          import json
-          import sys
-          import tomllib
+      - name: Install JavaScript dependencies
+        run: npm ci
 
-          with open("pyproject.toml", "rb") as file:
-              expected = tomllib.load(file)["project"]["version"]
+      - name: Install Python build tools
+        run: python -m pip install build twine
 
-          with open("package.json") as file:
-              package = json.load(file)
-          with open("package-lock.json") as file:
-              package_lock = json.load(file)
-          with open("opencode-plugin/package.json") as file:
-              opencode_plugin = json.load(file)
-          with open("pi-extension/package.json") as file:
-              pi_extension = json.load(file)
-          with open(".codex-plugin/plugin.json") as file:
-              codex_plugin = json.load(file)
-          with open(".claude-plugin/plugin.json") as file:
-              claude_plugin = json.load(file)
-          with open(".claude-plugin/marketplace.json") as file:
-              marketplace = json.load(file)
-
-          versions = {
-              "pyproject.toml": expected,
-              "package.json": package["version"],
-              "package-lock.json": package_lock["version"],
-              "package-lock.json root package": package_lock["packages"][""]["version"],
-              "opencode-plugin/package.json": opencode_plugin["version"],
-              "pi-extension/package.json": pi_extension["version"],
-              ".codex-plugin/plugin.json": codex_plugin["version"],
-              ".claude-plugin/plugin.json": claude_plugin["version"],
-              ".claude-plugin/marketplace.json": marketplace["plugins"][0]["version"],
-          }
-          drift = {name: version for name, version in versions.items() if version != expected}
-          if drift:
-              print(f"::error::Version drift: {versions}")
-              sys.exit(1)
-          print(f"Versions match: {expected}")
-
-      - name: Run Python tests
-        run: python3 -m unittest
-
-      - name: Run Node tests
-        run: |
-          npm ci
-          npm test
-
-      - name: Validate npm packages
-        run: |
-          npm --prefix opencode-plugin test
-          npm pack ./opencode-plugin --dry-run --json
-          npm --prefix pi-extension test
-          npm pack ./pi-extension --dry-run --json > /tmp/agent-status-pi-pack.json
-          python3 -c 'import json; from pathlib import Path; expected = {"index.js", "package.json", "README.md", "LICENSE"}; actual = {entry["path"] for entry in json.loads(Path("/tmp/agent-status-pi-pack.json").read_text())[0]["files"]}; assert actual == expected, f"Unexpected Pi package files: {sorted(actual)}"; print("Pi package files match")'
-
-      - name: Build package
-        run: |
-          python -m pip install build twine
-          python -m build
-
-      - name: Check package
-        run: twine check dist/*
+      - name: Run checks
+        run: make check

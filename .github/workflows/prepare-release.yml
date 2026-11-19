@@ -1,0 +1,79 @@
+name: Prepare release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release (blank for next patch)"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+
+      - name: Bump version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: make bump-version VERSION="$INPUT_VERSION"
+
+      - name: Read version
+        id: version
+        run: echo "version=$(python3 tools/version.py check)" >> "$GITHUB_OUTPUT"
+
+      - name: Check release tag
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if git show-ref --verify --quiet "refs/tags/v$VERSION"; then
+            echo "::error::Tag v$VERSION already exists."
+            exit 1
+          fi
+
+      - name: Create release branch and commit
+        id: release
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          branch="release/v$VERSION"
+          git switch -c "$branch"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet; then
+            echo "::error::Requested version $VERSION matches current version; no changes to commit."
+            exit 1
+          fi
+          git commit -am "chore(release): bump version to $VERSION"
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+
+      - name: Push release branch
+        env:
+          BRANCH: ${{ steps.release.outputs.branch }}
+        run: git push --set-upstream origin "$BRANCH"
+
+      - name: Create release pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ steps.release.outputs.branch }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          gh pr create \
+            --base main \
+            --head "$BRANCH" \
+            --title "chore(release): bump version to $VERSION" \
+            --body "Merge to publish $VERSION to PyPI, npm, and GitHub Releases."

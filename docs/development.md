@@ -70,16 +70,7 @@ Load repository package by absolute local path in project or global OpenCode con
 
 Run `opencode` in a test workspace and `agent-status watch` in another terminal. Smoke-test session creation, prompt work, question/permission blocking, idle goal retention, resume goal restoration, and snapshot cleanup on exit.
 
-Validate npm packages from repository root:
-
-```bash
-npm --prefix opencode-plugin test
-npm pack ./opencode-plugin --dry-run --json
-npm --prefix pi-extension test
-npm pack ./pi-extension --dry-run --json
-```
-
-Each dry-run output must contain only `index.js`, `package.json`, `README.md`, and `LICENSE`.
+Validate npm packages from repository root with `make check-packages`. Each package must contain only `index.js`, `package.json`, `README.md`, and `LICENSE`.
 
 ## Develop Codex CLI integration
 
@@ -126,15 +117,13 @@ Lifecycle mapping:
 ## Run checks
 
 ```bash
-python3 -m unittest
 npm ci
-npm test
-npm --prefix opencode-plugin test
-npm pack ./opencode-plugin --dry-run --json
-npm --prefix pi-extension test
-npm pack ./pi-extension --dry-run --json
+python -m pip install build twine
+make check
 claude plugin validate .
 ```
+
+`make check` verifies that all version files agree, runs the Python and Node tests, checks npm package contents, and builds the Python distributions.
 
 ## Build Python packages
 
@@ -156,41 +145,21 @@ agent-status --help
 
 ## Release
 
-Releases use annotated `vMAJOR.MINOR.PATCH` tags. PyPI, npm, and GitHub Releases use one synchronized version. Published versions are immutable; recover from a broken release with a new patch version.
+PyPI, npm, and GitHub Releases share one version. `tools/version.py` lists every file that holds it. Published versions are immutable, so recover from a broken release with a new patch version.
 
-Prepare and verify a version bump:
+1. Dispatch the **Prepare release** workflow from the Actions tab, or run:
 
-```bash
-git switch main
-git pull --ff-only
+   ```bash
+   gh workflow run prepare-release.yml            # next patch
+   gh workflow run prepare-release.yml -f version=X.Y.Z
+   ```
 
-make bump-version BUMP=patch
-python3 -m unittest
-npm ci
-npm test
-npm --prefix opencode-plugin test
-npm pack ./opencode-plugin --dry-run --json
-npm --prefix pi-extension test
-npm pack ./pi-extension --dry-run --json
-python -m build
-twine check dist/*
-```
+   It bumps every version file, pushes `release/vX.Y.Z`, and opens a pull request.
+2. Review and merge the pull request. Merging triggers `publish.yml`, which runs `make check`, publishes to PyPI, `agent-status-opencode`, and `agent-status-pi`, then creates the `vX.Y.Z` tag and GitHub Release on the merge commit.
 
-Commit the changed manifests on a branch and merge them through a pull request:
+GitHub does not run CI on pull requests opened by the workflow token. `publish.yml` runs the full check before publishing anything.
 
-```bash
-git add pyproject.toml package.json package-lock.json opencode-plugin/package.json pi-extension/package.json .codex-plugin/plugin.json .claude-plugin/plugin.json .claude-plugin/marketplace.json
-git commit -m "chore(release): bump version to X.Y.Z"
-```
-
-After the pull request merges, tag the merged commit and push the tag:
-
-```bash
-git switch main
-git pull --ff-only
-git tag -a vX.Y.Z -m "Release vX.Y.Z"
-git push origin vX.Y.Z
-```
+To bump locally, run `make bump-version` or `make bump-version VERSION=X.Y.Z`.
 
 Verify the release:
 
@@ -202,21 +171,19 @@ Verify the release:
 - Wheel and source distribution are attached.
 - A fresh virtual environment can install the released wheel.
 
-Repository setup required before the first release:
+Repository setup:
 
-- Add a `v*` tag ruleset restricted to release maintainers; block tag updates and deletion.
-- Confirm the `pypi` environment exists. Optionally require approval before publication.
-- Configure the PyPI Trusted Publisher for repository `julsemaan/agent-status`, workflow `.github/workflows/publish.yml`, and environment `pypi`.
-- Bootstrap `agent-status-opencode` once from exact tagged commit with `npm login` then `npm publish ./opencode-plugin --access public`; never store npm credentials in repository.
-- Bootstrap `agent-status-pi` once for its initial version from the exact tagged commit with `npm login` then `npm publish ./pi-extension --access public`; do not rerun the release workflow for that same npm version. Later versions publish through `publish-npm-pi`; never store npm credentials in repository.
-- Configure npm Trusted Publisher separately for `agent-status-opencode` and `agent-status-pi`: owner `julsemaan`, repository `agent-status`, workflow filename `publish.yml`, environment `npm`, and `npm publish` permission.
-- Configure npm package publishing access to require 2FA and disallow tokens.
+- Enable "Allow GitHub Actions to create and approve pull requests" under Settings > Actions > General.
+- Any `v*` tag ruleset must let GitHub Actions create tags while still blocking tag updates and deletion.
+- The `pypi` and `npm` environments must not restrict deployments to tags or `main`, since release runs use the pull request ref.
+- PyPI and npm Trusted Publishers point at workflow `publish.yml` with environments `pypi` and `npm`. They need no changes.
+- npm package publishing access requires 2FA and disallows tokens.
 - Do not store PyPI or npm credentials in repository secrets.
 
 Recovery rules:
 
-- Before PyPI publication, fix the commit and recreate the tag only after deleting the unpublished bad tag.
+- If the build job fails before anything publishes, rerun the workflow when the cause was temporary. Otherwise fix it on `main` and prepare the next patch.
 - After PyPI or npm publication, never move or reuse the tag or version.
 - For a broken published release, deprecate/yank it when necessary, then issue a patch release.
-- If one registry publishes and another job fails, keep published artifacts immutable, fix failure, and release a patch if rerunning cannot safely complete missing publication.
-- If GitHub Release publication fails after registry publication, rerun failed job or repair release assets manually.
+- If one registry publishes and another job fails, keep published artifacts immutable, fix the failure, and release a patch if rerunning cannot safely complete the missing publication.
+- If GitHub Release publication fails after registry publication, rerun the failed job or repair release assets manually.
